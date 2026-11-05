@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="xposed_scope">
+        <item>com.android.systemui</item>
+    </string-array>
+
+    <string-array name="tint_names">
+        <item>Cold Slate (Dark Ice)</item>
+        <item>Pure Dark (Onyx)</item>
+        <item>Midnight Navy (Cool Blue-Black)</item>
+        <item>Deep Charcoal (Graphite)</item>
+    </string-array>
+
+    <string-array name="tint_values">
+        <item>#0D111A</item>
+        <item>#08080C</item>
+        <item>#070C18</item>
+        <item>#121214</item>
+    </string-array>
+</resources>

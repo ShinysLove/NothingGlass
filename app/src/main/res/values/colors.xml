@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nothing OS Theme Colors -->
+    <color name="nt_black">#000000</color>
+    <color name="nt_dark_surface">#111113</color>
+    <color name="nt_dark_card">#18191C</color>
+    <color name="nt_card_border">#2C2D30</color>
+    <color name="nt_red">#D71921</color>
+    <color name="nt_red_variant">#B5151B</color>
+    <color name="nt_red_dim">#3A1215</color>
+
+    <color name="nt_white">#FFFFFF</color>
+    <color name="nt_gray_100">#E5E5E7</color>
+    <color name="nt_gray_300">#A0A0A5</color>
+    <color name="nt_gray_500">#6C6C70</color>
+    <color name="nt_gray_700">#3A3A3C</color>
+    <color name="nt_gray_800">#28282A</color>
+    <color name="nt_gray_900">#1C1C1E</color>
+
+    <color name="nt_green">#34C759</color>
+    <color name="nt_green_dim">#123A1B</color>
+
+    <!-- Glass Tint Options -->
+    <color name="tint_cold_slate_val">#0D111A</color>
+    <color name="tint_pure_dark_val">#08080C</color>
+    <color name="tint_midnight_navy_val">#070C18</color>
+    <color name="tint_deep_charcoal_val">#121214</color>
+</resources>

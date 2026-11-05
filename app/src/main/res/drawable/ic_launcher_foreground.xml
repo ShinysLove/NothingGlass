@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Frosted glass geometric hexagon / prism -->
+    <path
+        android:fillColor="#22FFFFFF"
+        android:strokeColor="#55FFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M54,26 L82,42 L82,74 L54,90 L26,74 L26,42 Z" />
+    <path
+        android:fillColor="#15FFFFFF"
+        android:pathData="M54,26 L82,42 L54,58 L26,42 Z" />
+    <path
+        android:fillColor="#0AFFFFFF"
+        android:pathData="M26,42 L54,58 L54,90 L26,74 Z" />
+    <!-- Signature Nothing Red Accent Dot -->
+    <path
+        android:fillColor="#D71921"
+        android:pathData="M54,58m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0" />
+</vector>
