@@ -29,11 +29,6 @@ object FlagHooks {
         hookBooleanFlag(flagsClass, "blurOnMoreSurfaces") {
             ConfigManager.current.isEffectiveEnabled
         }
-
-        // 4. enableLockscreenBlur()
-        hookBooleanFlag(flagsClass, "enableLockscreenBlur") {
-            ConfigManager.current.isEffectiveEnabled
-        }
     }
 
     private fun hookBooleanFlag(clazz: Class<*>, methodName: String, condition: () -> Boolean) {

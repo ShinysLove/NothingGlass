@@ -3,7 +3,6 @@ package com.nothing.glass.hooks
 import android.util.Pair
 import com.nothing.glass.HookEntry
 import com.nothing.glass.config.ConfigManager
-import com.nothing.glass.config.QuickSettingsMaterial
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XC_MethodReplacement
 import de.robv.android.xposed.XposedBridge
@@ -154,6 +153,9 @@ object BlurHooks {
         try {
             val computation = depthControllerClass.getDeclaredMethod("computeBlurAndZoomOut")
             val resultType = computation.returnType
+            val shouldApplyShadeBlur = runCatching {
+                depthControllerClass.getDeclaredMethod("shouldApplyShadeBlur").apply { isAccessible = true }
+            }.getOrNull()
             XposedBridge.hookMethod(
                 computation,
                 object : XC_MethodHook() {
@@ -162,23 +164,28 @@ object BlurHooks {
                         if (!config.isEffectiveEnabled) return
 
                         val result = param.result ?: return
-                        val shadeExp = shadeExpansionField?.getFloat(param.thisObject) ?: 0f
-                        val qsExp = qsPanelExpansionField?.getFloat(param.thisObject) ?: 0f
-                        val expansion = maxOf(shadeExp, qsExp)
+                        val stockRadius = when {
+                            result is Pair<*, *> -> result.first
+                            resultType.name == "kotlin.Pair" -> XposedHelpers.callMethod(result, "getFirst")
+                            else -> return
+                        } as? Int ?: return
+                        // A closed keyguard can report shadeExpansion == 1 even with blur disabled.
+                        if (stockRadius <= 0) return
 
-                        if (expansion > 0.01f) {
-                            val material = if (qsExp > 0.01f) config.qsMaterial else QuickSettingsMaterial.TRANSLUCENT
-                            val radius = FrostedBackdrop.radius(config, expansion, material)
-                            when {
-                                result is Pair<*, *> && result.first != radius -> {
-                                    param.result = Pair(radius, result.second)
-                                }
-                                resultType.name == "kotlin.Pair" -> {
-                                    if (XposedHelpers.callMethod(result, "getFirst") == radius) return
-                                    val zoom = XposedHelpers.callMethod(result, "getSecond")
-                                    param.result = XposedHelpers.newInstance(resultType, radius, zoom)
-                                }
-                            }
+                        val controller = param.thisObject
+                        val qsExpansion = qsPanelExpansionField?.getFloat(controller) ?: 0f
+                        val shadeExpansion = shadeExpansionField?.getFloat(controller) ?: 0f
+                        val qsOpen = qsExpansion > 0f && shadeExpansion > 0f
+                        if (!qsOpen && shouldApplyShadeBlur?.invoke(controller) != true) return
+
+                        val radius = QuickSettingsBackdrop.blurRadius(config, stockRadius, if (qsOpen) qsExpansion else 0f)
+                        if (stockRadius == radius) return
+
+                        param.result = if (result is Pair<*, *>) {
+                            Pair(radius, result.second)
+                        } else {
+                            val zoom = XposedHelpers.callMethod(result, "getSecond")
+                            XposedHelpers.newInstance(resultType, radius, zoom)
                         }
                     }
                 }

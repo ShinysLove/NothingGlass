@@ -232,6 +232,16 @@
                     android:textAllCaps="false" />
             </LinearLayout>
 
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchLargeTileWallpaper"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:minHeight="48dp"
+                android:text="@string/qs_large_tile_wallpaper"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp" />
+
             <!-- Blur Radius -->
             <LinearLayout
                 android:layout_width="match_parent"

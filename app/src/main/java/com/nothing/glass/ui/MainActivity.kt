@@ -151,6 +151,9 @@ class MainActivity : AppCompatActivity() {
         qsMaterial = QuickSettingsMaterial.fromValue(
             prefs.getInt(GlassConfig.KEY_QS_MATERIAL, GlassConfig.DEFAULT_QS_MATERIAL)
         )
+        binding.switchLargeTileWallpaper.isChecked = prefs.getBoolean(
+            GlassConfig.KEY_LARGE_TILE_WALLPAPER, GlassConfig.DEFAULT_LARGE_TILE_WALLPAPER
+        )
         updateQsMaterialLabel()
 
         binding.switchAnimation.isChecked = animationEnabled
@@ -401,6 +404,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.switchAnimation.setOnCheckedChangeListener { _, _ -> saveAndBroadcastConfig() }
+        binding.switchLargeTileWallpaper.setOnCheckedChangeListener { _, _ -> saveAndBroadcastConfig() }
         binding.btnQsMaterial.setOnClickListener {
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.qs_material_title)
@@ -570,6 +574,7 @@ class MainActivity : AppCompatActivity() {
             putInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, qsExpandedOpacity)
             putInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, qsCollapsedOpacity)
             putInt(GlassConfig.KEY_QS_MATERIAL, qsMaterial.ordinal)
+            putBoolean(GlassConfig.KEY_LARGE_TILE_WALLPAPER, binding.switchLargeTileWallpaper.isChecked)
             putBoolean(GlassConfig.KEY_ANIMATION_ENABLED, animationEnabled)
             putString(GlassConfig.KEY_TINT_HEX, tintHex)
 
@@ -624,6 +629,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(GlassConfig.KEY_QS_EXPANDED_ALPHA, qsExpandedOpacity)
             putExtra(GlassConfig.KEY_QS_COLLAPSED_ALPHA, qsCollapsedOpacity)
             putExtra(GlassConfig.KEY_QS_MATERIAL, qsMaterial.ordinal)
+            putExtra(GlassConfig.KEY_LARGE_TILE_WALLPAPER, binding.switchLargeTileWallpaper.isChecked)
             putExtra(GlassConfig.KEY_ANIMATION_ENABLED, animationEnabled)
             putExtra(GlassConfig.KEY_TINT_HEX, tintHex)
 
@@ -721,6 +727,7 @@ class MainActivity : AppCompatActivity() {
             putInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, stable.qsExpandedAlphaPercent)
             putInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, stable.qsCollapsedAlphaPercent)
             putInt(GlassConfig.KEY_QS_MATERIAL, stable.qsMaterialValue)
+            putBoolean(GlassConfig.KEY_LARGE_TILE_WALLPAPER, stable.largeTileWallpaperEnabled)
             putBoolean(GlassConfig.KEY_ANIMATION_ENABLED, stable.animationEnabled)
 
             putBoolean(GlassConfig.KEY_NOTIF_SCRIM_ENABLED, stable.notifScrimEnabled)

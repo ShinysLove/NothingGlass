@@ -54,7 +54,7 @@ object ScrimViewHooks {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val config = ConfigManager.current
-                        if (!config.isEffectiveEnabled) return
+                        if (!config.isEffectiveEnabled || QuickSettingsBackdrop.isIdleKeyguard()) return
                         val originalAlpha = param.args[0] as Float
                         val scrimName = mScrimNameField?.get(param.thisObject) as? String
 
@@ -82,7 +82,7 @@ object ScrimViewHooks {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val config = ConfigManager.current
-                        if (!config.isEffectiveEnabled) return
+                        if (!config.isEffectiveEnabled || QuickSettingsBackdrop.isIdleKeyguard()) return
                         val scrimName = mScrimNameField?.get(param.thisObject) as? String
 
                         if (scrimName == "notifications_scrim") {
@@ -110,7 +110,7 @@ object ScrimViewHooks {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val config = ConfigManager.current
-                        if (!config.isEffectiveEnabled) return
+                        if (!config.isEffectiveEnabled || QuickSettingsBackdrop.isIdleKeyguard()) return
                         try {
                             val view = param.thisObject as? View ?: return
                             val scrimName = mScrimNameField?.get(view) as? String
@@ -123,7 +123,8 @@ object ScrimViewHooks {
                             val shader = when (scrimName) {
                                 "behind_scrim" -> shadeShader.get(
                                     bounds, FrostedBackdrop.quickSettingsTint(view.context, config),
-                                    0.8f, canvas.isHardwareAccelerated, config.qsMaterial
+                                    0.8f, canvas.isHardwareAccelerated, config.qsMaterial,
+                                    QuickSettingsBackdrop.ease(QuickSettingsBackdrop.expansion)
                                 )
                                 "notifications_scrim" -> {
                                     if (!config.notifScrimEnabled || !config.notifScrimGradientEnabled) return

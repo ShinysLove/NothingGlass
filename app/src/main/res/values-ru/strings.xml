@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="qs_material_title">Фон быстрых настроек</string>
+    <string name="qs_large_tile_wallpaper">Цвет обоев для больших плиток</string>
     <string-array name="qs_material_entries">
         <item>Translucent</item>
         <item>Liquid Glass</item>

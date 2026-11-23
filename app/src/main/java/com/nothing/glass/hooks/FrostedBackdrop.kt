@@ -31,8 +31,27 @@ internal object FrostedBackdrop {
     fun tint(context: Context?, config: GlassConfig): Int =
         resolveTint(context, config.tintHex, config.tintColorInt)
 
-    fun quickSettingsTint(context: Context?, config: GlassConfig): Int =
-        ColorUtils.blendARGB(tint(context, config), Color.WHITE, 0.15f * config.qsMaterial.highlight)
+    fun quickSettingsTint(context: Context?, config: GlassConfig): Int {
+        val progress = QuickSettingsBackdrop.ease(QuickSettingsBackdrop.expansion)
+        val highlight = QuickSettingsBackdrop.mix(QuickSettingsMaterial.TRANSLUCENT.highlight, config.qsMaterial.highlight, progress)
+        return ColorUtils.blendARGB(tint(context, config), Color.WHITE, 0.15f * highlight)
+    }
+
+    fun largeTileTint(context: Context, stock: Int, wallpaperAccent: Int?): Int {
+        val light = ColorUtils.calculateLuminance(stock) > 0.35
+        val tone = if (light) android.R.color.system_accent1_100 else android.R.color.system_accent1_700
+        val wallpaper = if (wallpaperAccent == null) {
+            context.getColor(tone)
+        } else {
+            val hsl = FloatArray(3)
+            ColorUtils.colorToHSL(wallpaperAccent, hsl)
+            hsl[1] = hsl[1].coerceAtMost(0.70f)
+            hsl[2] = if (light) 0.85f else 0.26f
+            ColorUtils.HSLToColor(hsl)
+        }
+        val tint = ColorUtils.blendARGB(stock, wallpaper, if (light) 0.28f else 0.70f)
+        return ColorUtils.setAlphaComponent(tint, Color.alpha(stock))
+    }
 
     fun notificationTint(context: Context, config: GlassConfig, headsUp: Boolean = false): Int {
         val spec = if (headsUp) config.headsUpTintHex else config.notifCardTintHex
@@ -78,15 +97,19 @@ internal object FrostedBackdrop {
         private var lastStrength = 0f
         private var lastHardware = false
         private var lastMaterial = QuickSettingsMaterial.TRANSLUCENT
+        private var lastMaterialProgress = 1f
+        private var runtimeShader: RuntimeShader? = null
         private var runtimeShaderAvailable = true
 
         fun get(
             bounds: Rect, tint: Int, strength: Float, hardware: Boolean,
-            material: QuickSettingsMaterial = QuickSettingsMaterial.TRANSLUCENT
+            material: QuickSettingsMaterial = QuickSettingsMaterial.TRANSLUCENT,
+            materialProgress: Float = 1f
         ): Shader {
             val previous = cached
             if (previous != null && frame == bounds && lastTint == tint &&
-                lastStrength == strength && lastHardware == hardware && lastMaterial == material
+                lastStrength == strength && lastHardware == hardware && lastMaterial == material &&
+                lastMaterialProgress == materialProgress
             ) return previous
 
             frame.set(bounds)
@@ -94,12 +117,18 @@ internal object FrostedBackdrop {
             lastStrength = strength
             lastHardware = hardware
             lastMaterial = material
+            lastMaterialProgress = materialProgress
+            val baseMaterial = QuickSettingsMaterial.TRANSLUCENT
+            val highlight = QuickSettingsBackdrop.mix(baseMaterial.highlight, material.highlight, materialProgress)
+            val shade = QuickSettingsBackdrop.mix(baseMaterial.shadow, material.shadow, materialProgress)
+            val grain = QuickSettingsBackdrop.mix(baseMaterial.grain, material.grain, materialProgress)
+            val sheen = QuickSettingsBackdrop.mix(baseMaterial.sheen, material.sheen, materialProgress)
             val base = ColorUtils.setAlphaComponent(tint, 255)
-            val lit = ColorUtils.blendARGB(base, Color.WHITE, material.highlight * strength)
-            val shadow = ColorUtils.blendARGB(base, Color.BLACK, material.shadow * strength)
+            val lit = ColorUtils.blendARGB(base, Color.WHITE, highlight * strength)
+            val shadow = ColorUtils.blendARGB(base, Color.BLACK, shade * strength)
             val gpuShader = if (Build.VERSION.SDK_INT >= 33 && hardware && runtimeShaderAvailable) {
                 try {
-                    RuntimeShader(TINT_PROGRAM).apply {
+                    (runtimeShader ?: RuntimeShader(TINT_PROGRAM).also { runtimeShader = it }).apply {
                         setColorUniform("lit", lit)
                         setColorUniform("base", base)
                         setColorUniform("shadow", shadow)
@@ -107,7 +136,7 @@ internal object FrostedBackdrop {
                             "frame", frame.left.toFloat(), frame.top.toFloat(),
                             frame.width().coerceAtLeast(1).toFloat(), frame.height().coerceAtLeast(1).toFloat()
                         )
-                        setFloatUniform("optics", material.grain * strength, material.sheen * strength)
+                        setFloatUniform("optics", grain * strength, sheen * strength)
                     }
                 } catch (_: IllegalArgumentException) {
                     runtimeShaderAvailable = false

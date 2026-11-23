@@ -23,6 +23,7 @@ object TileHooks {
         hookResources(classLoader)
         hookTileViews(classLoader)
         hookComposeTileWorkspace(classLoader)
+        LargeTileHooks.install(classLoader)
     }
 
     private fun hookTileViews(classLoader: ClassLoader) {

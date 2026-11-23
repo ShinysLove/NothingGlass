@@ -1,6 +1,7 @@
 package com.nothing.glass.config
 
 import com.nothing.glass.hooks.QuickSettingsBackdrop
+import com.nothing.glass.hooks.LargeTileHooks
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -53,6 +54,7 @@ object ConfigManager {
             qsExpandedAlphaPercent = xp.getInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, GlassConfig.DEFAULT_QS_EXPANDED_ALPHA),
             qsCollapsedAlphaPercent = xp.getInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, GlassConfig.DEFAULT_QS_COLLAPSED_ALPHA),
             qsMaterialValue = xp.getInt(GlassConfig.KEY_QS_MATERIAL, GlassConfig.DEFAULT_QS_MATERIAL),
+            largeTileWallpaperEnabled = xp.getBoolean(GlassConfig.KEY_LARGE_TILE_WALLPAPER, GlassConfig.DEFAULT_LARGE_TILE_WALLPAPER),
             animationEnabled = xp.getBoolean(GlassConfig.KEY_ANIMATION_ENABLED, GlassConfig.DEFAULT_ANIMATION_ENABLED),
             animationIntensityPercent = xp.getInt(GlassConfig.KEY_ANIMATION_INTENSITY, GlassConfig.DEFAULT_ANIMATION_INTENSITY),
 
@@ -151,6 +153,7 @@ object ConfigManager {
             qsExpandedAlphaPercent = b.getInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, current.qsExpandedAlphaPercent),
             qsCollapsedAlphaPercent = b.getInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, current.qsCollapsedAlphaPercent),
             qsMaterialValue = b.getInt(GlassConfig.KEY_QS_MATERIAL, current.qsMaterialValue),
+            largeTileWallpaperEnabled = b.getBoolean(GlassConfig.KEY_LARGE_TILE_WALLPAPER, current.largeTileWallpaperEnabled),
             animationEnabled = b.getBoolean(GlassConfig.KEY_ANIMATION_ENABLED, current.animationEnabled),
             animationIntensityPercent = b.getInt(GlassConfig.KEY_ANIMATION_INTENSITY, current.animationIntensityPercent),
 
@@ -224,8 +227,12 @@ object ConfigManager {
                 override fun onReceive(ctx: Context?, intent: Intent?) {
                     val extras = intent?.extras
                     if (extras != null) {
+                        val previous = current
                         applyBundle(extras)
                         QuickSettingsBackdrop.refresh()
+                        if (previous.largeTileWallpaperEnabled != current.largeTileWallpaperEnabled ||
+                            previous.isEffectiveEnabled != current.isEffectiveEnabled
+                        ) LargeTileHooks.refresh()
                         if (current.debugLogging) {
                             XposedBridge.log("$TAG: Live update applied: $current")
                         }

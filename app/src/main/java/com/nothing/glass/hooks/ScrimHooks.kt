@@ -10,11 +10,14 @@ import de.robv.android.xposed.XC_MethodReplacement
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import java.lang.reflect.Field
+import kotlin.math.roundToInt
 
 object ScrimHooks {
 
     private var mStateField: Field? = null
     private var mPanelExpansionField: Field? = null
+    private var mQsExpansionField: Field? = null
+    private var mTransitionToFullShadeProgressField: Field? = null
     private var mBehindAlphaField: Field? = null
     private var mBehindTintField: Field? = null
     private var mNotificationsAlphaField: Field? = null
@@ -27,6 +30,7 @@ object ScrimHooks {
         initReflection(classLoader)
         hookScrimController(classLoader)
         hookShadeColors(classLoader)
+        hookOverlayBackdrop(classLoader)
     }
 
     private fun initReflection(classLoader: ClassLoader) {
@@ -37,6 +41,8 @@ object ScrimHooks {
 
         try { mStateField = scrimControllerClass.getDeclaredField("mState").apply { isAccessible = true } } catch (_: Throwable) {}
         try { mPanelExpansionField = scrimControllerClass.getDeclaredField("mPanelExpansionFraction").apply { isAccessible = true } } catch (_: Throwable) {}
+        try { mQsExpansionField = scrimControllerClass.getDeclaredField("mQsExpansion").apply { isAccessible = true } } catch (_: Throwable) {}
+        try { mTransitionToFullShadeProgressField = scrimControllerClass.getDeclaredField("mTransitionToFullShadeProgress").apply { isAccessible = true } } catch (_: Throwable) {}
         try { mBehindAlphaField = scrimControllerClass.getDeclaredField("mBehindAlpha").apply { isAccessible = true } } catch (_: Throwable) {}
         try { mBehindTintField = scrimControllerClass.getDeclaredField("mBehindTint").apply { isAccessible = true } } catch (_: Throwable) {}
         try { mNotificationsAlphaField = scrimControllerClass.getDeclaredField("mNotificationsAlpha").apply { isAccessible = true } } catch (_: Throwable) {}
@@ -44,6 +50,14 @@ object ScrimHooks {
         try { mClipsQsScrimField = scrimControllerClass.getDeclaredField("mClipsQsScrim").apply { isAccessible = true } } catch (_: Throwable) {}
         try { mScrimBehindField = scrimControllerClass.getDeclaredField("mScrimBehind").apply { isAccessible = true } } catch (_: Throwable) {}
         try { mNotificationsScrimField = scrimControllerClass.getDeclaredField("mNotificationsScrim").apply { isAccessible = true } } catch (_: Throwable) {}
+    }
+
+    internal fun isIdleKeyguard(controller: Any): Boolean {
+        val state = mStateField?.get(controller) as? Enum<*>
+        if (state?.name != "KEYGUARD") return false
+        val qsExpansion = mQsExpansionField?.getFloat(controller) ?: QuickSettingsBackdrop.expansion
+        val shadeTransition = mTransitionToFullShadeProgressField?.getFloat(controller) ?: 0f
+        return qsExpansion <= 0f && shadeTransition <= 0f
     }
 
     private fun hookScrimController(classLoader: ClassLoader) {
@@ -83,20 +97,25 @@ object ScrimHooks {
                 scrimControllerClass,
                 "applyState",
                 object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val controller = param.thisObject
+                        QuickSettingsBackdrop.track(controller, mScrimBehindField?.get(controller) as? View)
+                    }
+
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val config = ConfigManager.current
                         if (!config.isEffectiveEnabled) return
 
                         val scrimController = param.thisObject
                         try {
+                            if (isIdleKeyguard(scrimController)) return
                             val state = mStateField?.get(scrimController)
                             val stateName = state?.toString() ?: ""
 
                             if (stateName.contains("UNLOCKED") || stateName.contains("SHADE") || stateName.contains("KEYGUARD")) {
                                 val panelExpansion = mPanelExpansionField?.getFloat(scrimController) ?: 1f
-                                val behindAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
+                                val behindAlpha = QuickSettingsBackdrop.ease(panelExpansion)
                                 val scrimBehind = mScrimBehindField?.get(scrimController) as? View
-                                QuickSettingsBackdrop.track(scrimController, scrimBehind)
                                 val behindTint = FrostedBackdrop.quickSettingsTint(scrimBehind?.context, config)
 
                                 val notifAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
@@ -134,7 +153,7 @@ object ScrimHooks {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val config = ConfigManager.current
-                        if (!config.isEffectiveEnabled) return
+                        if (!config.isEffectiveEnabled || isIdleKeyguard(param.thisObject)) return
 
                         val scrimView = param.args[0] as? View ?: return
                         val scrimName = try {
@@ -164,6 +183,28 @@ object ScrimHooks {
         }
     }
 
+    private fun hookOverlayBackdrop(classLoader: ClassLoader) {
+        val colors = XposedHelpers.findClassIfExists(
+            "com.android.systemui.shade.ui.composable.OverlayShade\$Colors", classLoader
+        ) ?: return
+        for (method in colors.declaredMethods) {
+            if (!method.name.startsWith("panelBackgroundOpaque-") || method.returnType != Long::class.javaPrimitiveType) continue
+            XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val config = ConfigManager.current
+                    if (!config.isEffectiveEnabled) return
+                    val packed = param.result as? Long ?: return
+                    if (packed.toInt() != 0) return
+                    // The dual-shade backdrop forces alpha to 1 even when the compositor is still blurring.
+                    val alpha = (QuickSettingsBackdrop.alpha(config) * 255f).roundToInt()
+                    val argb = ColorUtils.setAlphaComponent((packed ushr 32).toInt(), alpha)
+                    param.result = argb.toLong() shl 32
+                }
+            })
+            HookEntry.log("[+] Hooked the dual-shade backdrop alpha")
+        }
+    }
+
     private fun hookShadeColors(classLoader: ClassLoader) {
         val shadeColorsClass = XposedHelpers.findClassIfExists(
             "com.android.systemui.shade.ui.ShadeColors",
@@ -183,7 +224,7 @@ object ScrimHooks {
                         XposedBridge.hookMethod(method, object : XC_MethodReplacement() {
                             override fun replaceHookedMethod(param: MethodHookParam): Any {
                                 val config = ConfigManager.current
-                                if (!config.isEffectiveEnabled) {
+                                if (!config.isEffectiveEnabled || QuickSettingsBackdrop.isIdleKeyguard()) {
                                     return XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
                                 }
                                 val targetAlpha = (QuickSettingsBackdrop.alpha(config) * 255).toInt()
@@ -201,7 +242,7 @@ object ScrimHooks {
                         XposedBridge.hookMethod(method, object : XC_MethodReplacement() {
                             override fun replaceHookedMethod(param: MethodHookParam): Any {
                                 val config = ConfigManager.current
-                                if (!config.isEffectiveEnabled) {
+                                if (!config.isEffectiveEnabled || QuickSettingsBackdrop.isIdleKeyguard()) {
                                     return XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
                                 }
                                 val targetAlpha = if (config.notifScrimEnabled) {

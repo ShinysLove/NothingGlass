@@ -18,6 +18,7 @@ data class GlassConfig(
     val qsExpandedAlphaPercent: Int = DEFAULT_QS_EXPANDED_ALPHA,
     val qsCollapsedAlphaPercent: Int = DEFAULT_QS_COLLAPSED_ALPHA,
     val qsMaterialValue: Int = DEFAULT_QS_MATERIAL,
+    val largeTileWallpaperEnabled: Boolean = DEFAULT_LARGE_TILE_WALLPAPER,
     val animationEnabled: Boolean = DEFAULT_ANIMATION_ENABLED,
     val animationIntensityPercent: Int = DEFAULT_ANIMATION_INTENSITY,
 
@@ -187,6 +188,7 @@ data class GlassConfig(
         const val KEY_TINT_HEX = "pref_tint_hex"
         const val KEY_QS_BACKGROUND_TINT_OPACITY = "pref_qs_background_tint_opacity"
         const val KEY_QS_MATERIAL = "pref_qs_material"
+        const val KEY_LARGE_TILE_WALLPAPER = "pref_large_tile_wallpaper"
         const val KEY_QS_EXPANDED_ALPHA = "pref_qs_expanded_alpha"
         const val KEY_QS_COLLAPSED_ALPHA = "pref_qs_collapsed_alpha"
         const val KEY_ANIMATION_ENABLED = "pref_animation_enabled"
@@ -267,6 +269,7 @@ data class GlassConfig(
         const val DEFAULT_QS_EXPANDED_ALPHA = 29
         const val DEFAULT_QS_COLLAPSED_ALPHA = 20
         const val DEFAULT_QS_MATERIAL = 0
+        const val DEFAULT_LARGE_TILE_WALLPAPER = true
         const val DEFAULT_ANIMATION_ENABLED = true
         const val DEFAULT_ANIMATION_INTENSITY = 100
 
