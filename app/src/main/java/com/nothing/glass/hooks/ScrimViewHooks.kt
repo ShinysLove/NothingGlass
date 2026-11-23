@@ -58,16 +58,12 @@ object ScrimViewHooks {
                         val originalAlpha = param.args[0] as Float
                         val scrimName = mScrimNameField?.get(param.thisObject) as? String
 
-                        if (scrimName != "front_scrim") {
-                            val targetMaxAlpha = if (scrimName == "notifications_scrim") {
-                                if (config.notifScrimEnabled) config.notifScrimAlpha else config.qsBackgroundAlpha
-                            } else {
-                                config.qsBackgroundAlpha
-                            }
-                            if (originalAlpha > targetMaxAlpha) {
-                                param.args[0] = targetMaxAlpha
-                            }
+                        val targetMaxAlpha = when (scrimName) {
+                            "notifications_scrim" -> if (config.notifScrimEnabled) config.notifScrimAlpha else config.shadeAlpha
+                            "behind_scrim" -> QuickSettingsBackdrop.alpha(config)
+                            else -> return
                         }
+                        if (originalAlpha > targetMaxAlpha) param.args[0] = targetMaxAlpha
                     }
                 }
             )
@@ -93,9 +89,9 @@ object ScrimViewHooks {
                             val view = param.thisObject as? View
                             param.args[0] = if (config.notifScrimEnabled) FrostedBackdrop.notificationScrimTint(view?.context, config)
                                 else FrostedBackdrop.tint(view?.context, config)
-                        } else if (scrimName != "front_scrim") {
+                        } else if (scrimName == "behind_scrim") {
                             val view = param.thisObject as? View
-                            param.args[0] = FrostedBackdrop.tint(view?.context, config)
+                            param.args[0] = FrostedBackdrop.quickSettingsTint(view?.context, config)
                         }
                     }
                 }
@@ -126,8 +122,8 @@ object ScrimViewHooks {
 
                             val shader = when (scrimName) {
                                 "behind_scrim" -> shadeShader.get(
-                                    bounds, FrostedBackdrop.tint(view.context, config),
-                                    0.8f, canvas.isHardwareAccelerated
+                                    bounds, FrostedBackdrop.quickSettingsTint(view.context, config),
+                                    0.8f, canvas.isHardwareAccelerated, config.qsMaterial
                                 )
                                 "notifications_scrim" -> {
                                     if (!config.notifScrimEnabled || !config.notifScrimGradientEnabled) return

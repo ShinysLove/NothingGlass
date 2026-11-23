@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="qs_material_title">Quick Settings material</string>
     <string name="app_name">Nothing Glass Translucent</string>
     <string name="app_description">Frosted Glass Blur for Nothing OS 5.0</string>
     <string name="status_active">SYSTEMUI HOOK ACTIVE</string>

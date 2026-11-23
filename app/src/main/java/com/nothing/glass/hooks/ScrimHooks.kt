@@ -52,6 +52,12 @@ object ScrimHooks {
             classLoader
         ) ?: return
 
+        XposedBridge.hookAllMethods(scrimControllerClass, "setQsPosition", object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                (param.args.firstOrNull() as? Float)?.let(QuickSettingsBackdrop::updateExpansion)
+            }
+        })
+
         // 1. isBlurCurrentlySupported()
         try {
             XposedHelpers.findAndHookMethod(
@@ -90,7 +96,8 @@ object ScrimHooks {
                                 val panelExpansion = mPanelExpansionField?.getFloat(scrimController) ?: 1f
                                 val behindAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
                                 val scrimBehind = mScrimBehindField?.get(scrimController) as? View
-                                val behindTint = FrostedBackdrop.tint(scrimBehind?.context, config)
+                                QuickSettingsBackdrop.track(scrimController, scrimBehind)
+                                val behindTint = FrostedBackdrop.quickSettingsTint(scrimBehind?.context, config)
 
                                 val notifAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
                                 val notifTint = if (config.notifScrimEnabled) {
@@ -103,10 +110,8 @@ object ScrimHooks {
                                 mNotificationsTintField?.setInt(scrimController, notifTint)
                                 mClipsQsScrimField?.setBoolean(scrimController, false)
 
-                                scrimBehind?.alpha = (behindAlpha * config.qsBackgroundAlpha).coerceIn(0f, 1f)
-
                                 val scrimNotif = mNotificationsScrimField?.get(scrimController) as? View
-                                val notifTarget = if (config.notifScrimEnabled) config.notifScrimAlpha else config.qsBackgroundAlpha
+                                val notifTarget = if (config.notifScrimEnabled) config.notifScrimAlpha else config.shadeAlpha
                                 scrimNotif?.alpha = (notifAlpha * notifTarget).coerceIn(0f, 1f)
                             }
                         } catch (_: Throwable) {}
@@ -141,14 +146,14 @@ object ScrimHooks {
                         val originalAlpha = param.args[1] as Float
 
                         if (scrimName == "notifications_scrim") {
-                            val ratio = if (config.notifScrimEnabled) config.notifScrimAlpha else config.qsBackgroundAlpha
+                            val ratio = if (config.notifScrimEnabled) config.notifScrimAlpha else config.shadeAlpha
                             val notifTint = if (config.notifScrimEnabled) FrostedBackdrop.notificationScrimTint(scrimView.context, config)
                                 else FrostedBackdrop.tint(scrimView.context, config)
                             param.args[1] = (originalAlpha * ratio).coerceIn(0.0f, 1.0f)
                             param.args[2] = notifTint
-                        } else {
-                            param.args[1] = (originalAlpha * config.qsBackgroundAlpha).coerceIn(0.0f, 1.0f)
-                            param.args[2] = FrostedBackdrop.tint(scrimView.context, config)
+                        } else if (scrimName == "behind_scrim") {
+                            param.args[1] = (originalAlpha * QuickSettingsBackdrop.alpha(config)).coerceIn(0f, 1f)
+                            param.args[2] = FrostedBackdrop.quickSettingsTint(scrimView.context, config)
                         }
                     }
                 }
@@ -181,9 +186,9 @@ object ScrimHooks {
                                 if (!config.isEffectiveEnabled) {
                                     return XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
                                 }
-                                val targetAlpha = (config.qsBackgroundAlpha * 255).toInt().coerceIn(0, 255)
+                                val targetAlpha = (QuickSettingsBackdrop.alpha(config) * 255).toInt()
                                 val context = param.args.firstOrNull() as? Context
-                                return ColorUtils.setAlphaComponent(FrostedBackdrop.tint(context, config), targetAlpha)
+                                return ColorUtils.setAlphaComponent(FrostedBackdrop.quickSettingsTint(context, config), targetAlpha)
                             }
                         })
                         HookEntry.log("[+] Hooked ShadeColors.${method.name}() [${method.parameterTypes.joinToString { it.simpleName }}]")
@@ -202,7 +207,7 @@ object ScrimHooks {
                                 val targetAlpha = if (config.notifScrimEnabled) {
                                     (config.notifScrimAlpha * 255).toInt().coerceIn(0, 255)
                                 } else {
-                                    (config.qsBackgroundAlpha * 255).toInt().coerceIn(0, 255)
+                                    (config.shadeAlpha * 255).toInt().coerceIn(0, 255)
                                 }
                                 val targetTint = if (config.notifScrimEnabled) {
                                     FrostedBackdrop.notificationScrimTint(param.args.firstOrNull() as? Context, config)

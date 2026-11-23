@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.nothing.glass.R
 import com.nothing.glass.config.GlassConfig
 import com.nothing.glass.config.GlassConfigProvider
+import com.nothing.glass.config.QuickSettingsMaterial
 import com.nothing.glass.databinding.ActivityMainBinding
 import java.io.DataOutputStream
 import java.util.Locale
@@ -19,6 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
+    private var qsMaterial = QuickSettingsMaterial.TRANSLUCENT
 
     override fun attachBaseContext(newBase: Context) {
         val language = newBase.getSharedPreferences("nothing_glass_ui", Context.MODE_PRIVATE)
@@ -138,7 +140,7 @@ class MainActivity : AppCompatActivity() {
         binding.sliderShadeOpacity.value = shadeOpacity.toFloat().coerceIn(0f, 100f)
         binding.tvShadeOpacityVal.text = "$shadeOpacity%"
 
-        binding.sliderQsBackgroundTintOpacity.value = qsBgTintOpacity.toFloat().coerceIn(10f, 100f)
+        binding.sliderQsBackgroundTintOpacity.value = qsBgTintOpacity.toFloat().coerceIn(0f, 100f)
         binding.tvQsBackgroundTintOpacityVal.text = "$qsBgTintOpacity%"
 
         binding.sliderQsExpandedOpacity.value = qsExpandedOpacity.toFloat().coerceIn(0f, 100f)
@@ -146,6 +148,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.sliderQsCollapsedOpacity.value = qsCollapsedOpacity.toFloat().coerceIn(0f, 100f)
         binding.tvQsCollapsedOpacityVal.text = "$qsCollapsedOpacity%"
+        qsMaterial = QuickSettingsMaterial.fromValue(
+            prefs.getInt(GlassConfig.KEY_QS_MATERIAL, GlassConfig.DEFAULT_QS_MATERIAL)
+        )
+        updateQsMaterialLabel()
 
         binding.switchAnimation.isChecked = animationEnabled
 
@@ -395,6 +401,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.switchAnimation.setOnCheckedChangeListener { _, _ -> saveAndBroadcastConfig() }
+        binding.btnQsMaterial.setOnClickListener {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.qs_material_title)
+                .setSingleChoiceItems(R.array.qs_material_entries, qsMaterial.ordinal) { dialog, selected ->
+                    qsMaterial = QuickSettingsMaterial.fromValue(selected)
+                    updateQsMaterialLabel()
+                    saveAndBroadcastConfig()
+                    dialog.dismiss()
+                }
+                .show()
+        }
         binding.switchNotifScrim.setOnCheckedChangeListener { _, _ -> saveAndBroadcastConfig() }
         binding.switchNotifScrimGradient.setOnCheckedChangeListener { _, _ -> saveAndBroadcastConfig() }
         binding.switchUnifiedNotifBackdropBlur.setOnCheckedChangeListener { _, _ -> saveAndBroadcastConfig() }
@@ -431,6 +448,10 @@ class MainActivity : AppCompatActivity() {
         binding.statusIndicator.setBackgroundResource(
             if (active) R.drawable.bg_status_active else R.drawable.bg_status_inactive
         )
+    }
+
+    private fun updateQsMaterialLabel() {
+        binding.btnQsMaterial.text = resources.getStringArray(R.array.qs_material_entries)[qsMaterial.ordinal]
     }
 
     private fun generateWallpaperColors() {
@@ -548,6 +569,7 @@ class MainActivity : AppCompatActivity() {
             putInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, qsBgTintOpacity)
             putInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, qsExpandedOpacity)
             putInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, qsCollapsedOpacity)
+            putInt(GlassConfig.KEY_QS_MATERIAL, qsMaterial.ordinal)
             putBoolean(GlassConfig.KEY_ANIMATION_ENABLED, animationEnabled)
             putString(GlassConfig.KEY_TINT_HEX, tintHex)
 
@@ -601,6 +623,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, qsBgTintOpacity)
             putExtra(GlassConfig.KEY_QS_EXPANDED_ALPHA, qsExpandedOpacity)
             putExtra(GlassConfig.KEY_QS_COLLAPSED_ALPHA, qsCollapsedOpacity)
+            putExtra(GlassConfig.KEY_QS_MATERIAL, qsMaterial.ordinal)
             putExtra(GlassConfig.KEY_ANIMATION_ENABLED, animationEnabled)
             putExtra(GlassConfig.KEY_TINT_HEX, tintHex)
 
@@ -697,6 +720,7 @@ class MainActivity : AppCompatActivity() {
             putInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, stable.qsBackgroundTintOpacityPercent)
             putInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, stable.qsExpandedAlphaPercent)
             putInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, stable.qsCollapsedAlphaPercent)
+            putInt(GlassConfig.KEY_QS_MATERIAL, stable.qsMaterialValue)
             putBoolean(GlassConfig.KEY_ANIMATION_ENABLED, stable.animationEnabled)
 
             putBoolean(GlassConfig.KEY_NOTIF_SCRIM_ENABLED, stable.notifScrimEnabled)

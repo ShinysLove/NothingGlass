@@ -9,6 +9,10 @@ Notification cards and heads-up alerts use the wallpaper palette in their defaul
 The buttons to clear notifications, open history, and open notification settings use
 the same glass shader with a rounded per-button backdrop.
 
+Quick Settings supports four materials: Translucent, Liquid Glass, Acrylic, and Frosted
+Glass. They use different blur radii, tint strengths, highlights, and grain. The shade,
+collapsed/expanded panel, and tint opacity controls contribute to the backdrop opacity.
+
 This fork has its own package ID, `com.nothing.glass.translucent`. Enable only one
 Nothing Glass module in Vector or LSPosed, since both target `com.android.systemui`.
 The hook signatures were checked against Phone (3a) firmware `C5.0-261106-1007`.

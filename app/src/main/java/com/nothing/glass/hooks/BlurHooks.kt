@@ -3,6 +3,7 @@ package com.nothing.glass.hooks
 import android.util.Pair
 import com.nothing.glass.HookEntry
 import com.nothing.glass.config.ConfigManager
+import com.nothing.glass.config.QuickSettingsMaterial
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XC_MethodReplacement
 import de.robv.android.xposed.XposedBridge
@@ -97,6 +98,12 @@ object BlurHooks {
         }
         HookEntry.log("[+] Found class: com.android.systemui.statusbar.NotificationShadeDepthController")
 
+        XposedBridge.hookAllMethods(depthControllerClass, "setQsPanelExpansion", object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                (param.args.firstOrNull() as? Float)?.let(QuickSettingsBackdrop::updateExpansion)
+            }
+        })
+
         // Cache reflection fields for 120Hz performance
         try {
             shadeExpansionField = depthControllerClass.getDeclaredField("shadeExpansion").apply { isAccessible = true }
@@ -160,7 +167,8 @@ object BlurHooks {
                         val expansion = maxOf(shadeExp, qsExp)
 
                         if (expansion > 0.01f) {
-                            val radius = FrostedBackdrop.radius(config, expansion)
+                            val material = if (qsExp > 0.01f) config.qsMaterial else QuickSettingsMaterial.TRANSLUCENT
+                            val radius = FrostedBackdrop.radius(config, expansion, material)
                             when {
                                 result is Pair<*, *> && result.first != radius -> {
                                     param.result = Pair(radius, result.second)

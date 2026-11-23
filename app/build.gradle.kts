@@ -11,8 +11,8 @@ android {
         applicationId = "com.nothing.glass.translucent"
         minSdk = 31
         targetSdk = 34
-        versionCode = 110
-        versionName = "1.1.2-translucent"
+        versionCode = 111
+        versionName = "1.1.3-translucent"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

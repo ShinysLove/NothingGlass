@@ -31,6 +31,7 @@ class GlassConfigProvider : ContentProvider() {
                     putInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, prefs.getInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, GlassConfig.DEFAULT_QS_BACKGROUND_TINT_OPACITY))
                     putInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, prefs.getInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, GlassConfig.DEFAULT_QS_EXPANDED_ALPHA))
                     putInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, prefs.getInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, GlassConfig.DEFAULT_QS_COLLAPSED_ALPHA))
+                    putInt(GlassConfig.KEY_QS_MATERIAL, prefs.getInt(GlassConfig.KEY_QS_MATERIAL, GlassConfig.DEFAULT_QS_MATERIAL))
                     putBoolean(GlassConfig.KEY_ANIMATION_ENABLED, prefs.getBoolean(GlassConfig.KEY_ANIMATION_ENABLED, GlassConfig.DEFAULT_ANIMATION_ENABLED))
                     putInt(GlassConfig.KEY_ANIMATION_INTENSITY, prefs.getInt(GlassConfig.KEY_ANIMATION_INTENSITY, GlassConfig.DEFAULT_ANIMATION_INTENSITY))
 
@@ -104,6 +105,7 @@ class GlassConfigProvider : ContentProvider() {
                         if (b.containsKey(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY)) putInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, b.getInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY))
                         if (b.containsKey(GlassConfig.KEY_QS_EXPANDED_ALPHA)) putInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, b.getInt(GlassConfig.KEY_QS_EXPANDED_ALPHA))
                         if (b.containsKey(GlassConfig.KEY_QS_COLLAPSED_ALPHA)) putInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, b.getInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA))
+                        if (b.containsKey(GlassConfig.KEY_QS_MATERIAL)) putInt(GlassConfig.KEY_QS_MATERIAL, b.getInt(GlassConfig.KEY_QS_MATERIAL))
                         if (b.containsKey(GlassConfig.KEY_ANIMATION_ENABLED)) putBoolean(GlassConfig.KEY_ANIMATION_ENABLED, b.getBoolean(GlassConfig.KEY_ANIMATION_ENABLED))
                         if (b.containsKey(GlassConfig.KEY_ANIMATION_INTENSITY)) putInt(GlassConfig.KEY_ANIMATION_INTENSITY, b.getInt(GlassConfig.KEY_ANIMATION_INTENSITY))
 

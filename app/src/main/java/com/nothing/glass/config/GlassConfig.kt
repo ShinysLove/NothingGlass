@@ -17,6 +17,7 @@ data class GlassConfig(
     val qsBackgroundTintOpacityPercent: Int = DEFAULT_QS_BACKGROUND_TINT_OPACITY,
     val qsExpandedAlphaPercent: Int = DEFAULT_QS_EXPANDED_ALPHA,
     val qsCollapsedAlphaPercent: Int = DEFAULT_QS_COLLAPSED_ALPHA,
+    val qsMaterialValue: Int = DEFAULT_QS_MATERIAL,
     val animationEnabled: Boolean = DEFAULT_ANIMATION_ENABLED,
     val animationIntensityPercent: Int = DEFAULT_ANIMATION_INTENSITY,
 
@@ -94,6 +95,9 @@ data class GlassConfig(
 
     val qsCollapsedAlpha: Float
         get() = (qsCollapsedAlphaPercent.coerceIn(0, 100) / 100f)
+
+    val qsMaterial: QuickSettingsMaterial
+        get() = QuickSettingsMaterial.fromValue(qsMaterialValue)
 
     val tintColorInt: Int
         get() = safeParseColor(tintHex, DEFAULT_TINT_HEX)
@@ -182,6 +186,7 @@ data class GlassConfig(
         const val KEY_SHADE_OPACITY = "pref_shade_opacity"
         const val KEY_TINT_HEX = "pref_tint_hex"
         const val KEY_QS_BACKGROUND_TINT_OPACITY = "pref_qs_background_tint_opacity"
+        const val KEY_QS_MATERIAL = "pref_qs_material"
         const val KEY_QS_EXPANDED_ALPHA = "pref_qs_expanded_alpha"
         const val KEY_QS_COLLAPSED_ALPHA = "pref_qs_collapsed_alpha"
         const val KEY_ANIMATION_ENABLED = "pref_animation_enabled"
@@ -261,6 +266,7 @@ data class GlassConfig(
         const val DEFAULT_QS_BACKGROUND_TINT_OPACITY = 27
         const val DEFAULT_QS_EXPANDED_ALPHA = 29
         const val DEFAULT_QS_COLLAPSED_ALPHA = 20
+        const val DEFAULT_QS_MATERIAL = 0
         const val DEFAULT_ANIMATION_ENABLED = true
         const val DEFAULT_ANIMATION_INTENSITY = 100
 

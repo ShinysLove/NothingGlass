@@ -1,5 +1,7 @@
 package com.nothing.glass.config
 
+import com.nothing.glass.hooks.QuickSettingsBackdrop
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -50,6 +52,7 @@ object ConfigManager {
             qsBackgroundTintOpacityPercent = xp.getInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, GlassConfig.DEFAULT_QS_BACKGROUND_TINT_OPACITY),
             qsExpandedAlphaPercent = xp.getInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, GlassConfig.DEFAULT_QS_EXPANDED_ALPHA),
             qsCollapsedAlphaPercent = xp.getInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, GlassConfig.DEFAULT_QS_COLLAPSED_ALPHA),
+            qsMaterialValue = xp.getInt(GlassConfig.KEY_QS_MATERIAL, GlassConfig.DEFAULT_QS_MATERIAL),
             animationEnabled = xp.getBoolean(GlassConfig.KEY_ANIMATION_ENABLED, GlassConfig.DEFAULT_ANIMATION_ENABLED),
             animationIntensityPercent = xp.getInt(GlassConfig.KEY_ANIMATION_INTENSITY, GlassConfig.DEFAULT_ANIMATION_INTENSITY),
 
@@ -147,6 +150,7 @@ object ConfigManager {
             qsBackgroundTintOpacityPercent = b.getInt(GlassConfig.KEY_QS_BACKGROUND_TINT_OPACITY, current.qsBackgroundTintOpacityPercent),
             qsExpandedAlphaPercent = b.getInt(GlassConfig.KEY_QS_EXPANDED_ALPHA, current.qsExpandedAlphaPercent),
             qsCollapsedAlphaPercent = b.getInt(GlassConfig.KEY_QS_COLLAPSED_ALPHA, current.qsCollapsedAlphaPercent),
+            qsMaterialValue = b.getInt(GlassConfig.KEY_QS_MATERIAL, current.qsMaterialValue),
             animationEnabled = b.getBoolean(GlassConfig.KEY_ANIMATION_ENABLED, current.animationEnabled),
             animationIntensityPercent = b.getInt(GlassConfig.KEY_ANIMATION_INTENSITY, current.animationIntensityPercent),
 
@@ -221,6 +225,7 @@ object ConfigManager {
                     val extras = intent?.extras
                     if (extras != null) {
                         applyBundle(extras)
+                        QuickSettingsBackdrop.refresh()
                         if (current.debugLogging) {
                             XposedBridge.log("$TAG: Live update applied: $current")
                         }

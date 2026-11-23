@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="qs_material_title">Фон быстрых настроек</string>
+    <string-array name="qs_material_entries">
+        <item>Translucent</item>
+        <item>Liquid Glass</item>
+        <item>Акрил</item>
+        <item>Матовое стекло</item>
+    </string-array>
     <string name="ui_dark_glass_your_style">Тёмное стекло. Ваш стиль.</string>
     <string name="ui_glass_effect">Эффект стекла</string>
     <string name="ui_all_effects_one_switch">Все эффекты одним переключателем</string>
