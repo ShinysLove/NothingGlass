@@ -23,7 +23,7 @@ object ConfigManager {
 
     fun initXSharedPreferences() {
         try {
-            xPrefs = XSharedPreferences("com.nothing.glass", GlassConfig.PREFS_NAME).apply {
+            xPrefs = XSharedPreferences(GlassConfig.MODULE_PACKAGE, GlassConfig.PREFS_NAME).apply {
                 makeWorldReadable()
                 reload()
             }

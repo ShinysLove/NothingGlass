@@ -216,7 +216,7 @@ object VolumeHooks {
                 }
                 blur?.let {
                     it.bounds = bounds
-                    XposedHelpers.callMethod(it, "setBlurRadius", config.volumeBlurRadius.coerceIn(60, 100))
+                    XposedHelpers.callMethod(it, "setBlurRadius", config.volumeBlurRadius.coerceIn(0, 100))
                     val radii = cornerRadii
                     if (radii != null) {
                         XposedHelpers.callMethod(it, "setCornerRadius", *radii.toTypedArray())
@@ -226,8 +226,10 @@ object VolumeHooks {
                     it.draw(canvas)
                 }
             } catch (_: Throwable) { blur = null }
-            // A single dense material for the slider and every button surface.
-            val tint = androidx.core.graphics.ColorUtils.setAlphaComponent(config.tintColorInt, if (blur != null) 210 else 245)
+            val tint = androidx.core.graphics.ColorUtils.setAlphaComponent(
+                FrostedBackdrop.tint(view.context, config),
+                if (blur != null && config.volumeBlurRadius > 0) 150 else 225
+            )
             if (materialColor != tint || color?.defaultColor != tint) {
                 materialColor = tint
                 setColor(tint)

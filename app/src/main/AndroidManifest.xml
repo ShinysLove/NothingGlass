@@ -37,7 +37,7 @@
         <!-- ContentProvider for cross-process IPC compliant with Android 17 / SELinux -->
         <provider
             android:name=".config.GlassConfigProvider"
-            android:authorities="com.nothing.glass.provider"
+            android:authorities="${applicationId}.provider"
             android:exported="true" />
     </application>
 

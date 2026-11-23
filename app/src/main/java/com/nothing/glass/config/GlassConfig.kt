@@ -1,6 +1,7 @@
 package com.nothing.glass.config
 
 import android.graphics.Color
+import androidx.core.graphics.ColorUtils
 
 data class GlassConfig(
     // A. General
@@ -165,9 +166,10 @@ data class GlassConfig(
 
     companion object {
         const val PREFS_NAME = "nothing_glass_prefs"
-        const val AUTHORITY = "com.nothing.glass.provider"
-        const val ACTION_CONFIG_CHANGED = "com.nothing.glass.ACTION_CONFIG_CHANGED"
-        const val DISABLE_FLAG_FILE = "/data/local/tmp/nothing_glass_disable"
+        const val MODULE_PACKAGE = "com.nothing.glass.translucent"
+        const val AUTHORITY = "$MODULE_PACKAGE.provider"
+        const val ACTION_CONFIG_CHANGED = "$MODULE_PACKAGE.ACTION_CONFIG_CHANGED"
+        const val DISABLE_FLAG_FILE = "/data/local/tmp/nothing_glass_translucent_disable"
 
         // Keys A
         const val KEY_ENABLED = "pref_enabled"
@@ -251,27 +253,29 @@ data class GlassConfig(
         const val DEFAULT_DEBUG_OVERLAY_BOUNDS = false
 
         // Defaults B
-        const val DEFAULT_BLUR_RADIUS = 45 // 30-45 px
-        const val DEFAULT_SHADE_OPACITY = 35
-        const val DEFAULT_TINT_HEX = "#0D111A"
-        const val DEFAULT_QS_BACKGROUND_TINT_OPACITY = 35 // 35-45%
-        const val DEFAULT_QS_EXPANDED_ALPHA = 35
-        const val DEFAULT_QS_COLLAPSED_ALPHA = 25
+        const val WALLPAPER_MONET = "@wallpaper_monet"
+        private const val NEUTRAL_TINT = "#252A34"
+        const val DEFAULT_BLUR_RADIUS = 56
+        const val DEFAULT_SHADE_OPACITY = 29
+        const val DEFAULT_TINT_HEX = WALLPAPER_MONET
+        const val DEFAULT_QS_BACKGROUND_TINT_OPACITY = 27
+        const val DEFAULT_QS_EXPANDED_ALPHA = 29
+        const val DEFAULT_QS_COLLAPSED_ALPHA = 20
         const val DEFAULT_ANIMATION_ENABLED = true
         const val DEFAULT_ANIMATION_INTENSITY = 100
 
         // Defaults C
         const val DEFAULT_NOTIF_SCRIM_ENABLED = true
-        const val DEFAULT_NOTIF_SCRIM_OPACITY = 28 // Translucent scrim allowing backdrop blur to shine through
-        const val DEFAULT_NOTIF_SCRIM_TINT_HEX = "#0D111A"
+        const val DEFAULT_NOTIF_SCRIM_OPACITY = 17
+        const val DEFAULT_NOTIF_SCRIM_TINT_HEX = NEUTRAL_TINT
         const val DEFAULT_NOTIF_SCRIM_GRADIENT_ENABLED = true
         const val DEFAULT_NOTIF_SCRIM_GRADIENT_STRENGTH = 50
 
         // Defaults D
         const val DEFAULT_NOTIF_GLASS_ENABLED = true
-        const val DEFAULT_NOTIF_CARD_ALPHA = 50 // Translucent frosted glass (50%)
-        const val DEFAULT_NOTIF_CARD_TINT_OPACITY = 20 // Soft dark tint substrate (20%)
-        const val DEFAULT_NOTIF_CARD_TINT_HEX = "#0D111A"
+        const val DEFAULT_NOTIF_CARD_ALPHA = 42
+        const val DEFAULT_NOTIF_CARD_TINT_OPACITY = 15
+        const val DEFAULT_NOTIF_CARD_TINT_HEX = NEUTRAL_TINT
         const val DEFAULT_NOTIF_CARD_BLUR_ENABLED = false // Unified Backdrop Blur used by default
         const val DEFAULT_NOTIF_CARD_BLUR_RADIUS = 35 // 30-45 px
         const val DEFAULT_NOTIF_CARD_CORNER_RADIUS_DP = 28 // 28 dp standard Nothing OS pill
@@ -283,10 +287,10 @@ data class GlassConfig(
         // Defaults E
         const val DEFAULT_HEADSUP_GLASS_ENABLED = true
         const val DEFAULT_HEADSUP_ALPHA = 76
-        const val DEFAULT_HEADSUP_TINT_OPACITY = 55 // 55%
+        const val DEFAULT_HEADSUP_TINT_OPACITY = 44
         const val DEFAULT_HEADSUP_BLUR_ENABLED = true
         const val DEFAULT_HEADSUP_BLUR_RADIUS = 35 // 30-45 px
-        const val DEFAULT_HEADSUP_TINT_HEX = "#0D111A"
+        const val DEFAULT_HEADSUP_TINT_HEX = NEUTRAL_TINT
 
         // Defaults F
         const val DEFAULT_TILE_OPACITY = 70
@@ -295,7 +299,7 @@ data class GlassConfig(
         const val DEFAULT_ACTIVE_TILE_ALPHA = 90
         const val DEFAULT_INACTIVE_TILE_ALPHA = 60
         const val DEFAULT_DISABLED_TILE_ALPHA = 40
-        const val DEFAULT_TILE_TINT_HEX = "#0D111A"
+        const val DEFAULT_TILE_TINT_HEX = NEUTRAL_TINT
         const val DEFAULT_TILE_CORNER_OVERRIDE = 0
 
         // Defaults G
@@ -319,19 +323,15 @@ data class GlassConfig(
         const val DEFAULT_CACHE_RESOURCES = true
         const val DEFAULT_DISABLE_PER_CARD_FALLBACK = true
 
-        const val WALLPAPER_MONET = "@wallpaper_monet"
-
         private fun safeParseColor(colorStr: String, fallback: String): Int {
             if (colorStr == WALLPAPER_MONET) {
-                // Android's Monet tonal palette is generated from the selected wallpaper.
-                val resources = android.content.res.Resources.getSystem()
-                val id = resources.getIdentifier("system_accent2_900", "color", "android")
-                if (id != 0) return resources.getColor(id, null)
+                val accent = android.content.res.Resources.getSystem().getColor(android.R.color.system_accent2_700, null)
+                return ColorUtils.blendARGB(Color.parseColor(NEUTRAL_TINT), accent, 0.65f)
             }
             return try {
                 Color.parseColor(colorStr)
             } catch (_: Throwable) {
-                Color.parseColor(fallback)
+                Color.parseColor(if (fallback == WALLPAPER_MONET) NEUTRAL_TINT else fallback)
             }
         }
 
@@ -352,14 +352,14 @@ data class GlassConfig(
                 animationIntensityPercent = 100,
 
                 notifScrimEnabled = true,
-                notifScrimOpacityPercent = 28,
+                notifScrimOpacityPercent = DEFAULT_NOTIF_SCRIM_OPACITY,
                 notifScrimTintHex = DEFAULT_NOTIF_SCRIM_TINT_HEX,
                 notifScrimGradientEnabled = true,
                 notifScrimGradientStrengthPercent = 50,
 
                 notifGlassEnabled = true,
-                notifCardAlphaPercent = 50,
-                notifCardTintOpacityPercent = 20,
+                notifCardAlphaPercent = DEFAULT_NOTIF_CARD_ALPHA,
+                notifCardTintOpacityPercent = DEFAULT_NOTIF_CARD_TINT_OPACITY,
                 notifCardTintHex = DEFAULT_NOTIF_CARD_TINT_HEX,
                 notifCardBlurEnabled = false,
                 notifCardBlurRadius = DEFAULT_NOTIF_CARD_BLUR_RADIUS,

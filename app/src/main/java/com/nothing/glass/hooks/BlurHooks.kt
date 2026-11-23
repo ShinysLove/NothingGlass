@@ -13,10 +13,9 @@ object BlurHooks {
 
     private var shadeExpansionField: Field? = null
     private var qsPanelExpansionField: Field? = null
-    private var lastComputedExpansion = -1f
-    private var lastComputedRadius = -1
 
     fun install(classLoader: ClassLoader) {
+        FrostedBackdrop.bindPalette(classLoader)
         hookBlurUtils(classLoader)
         hookDepthController(classLoader)
         hookWindowRootViewBlurInteractor(classLoader)
@@ -146,47 +145,32 @@ object BlurHooks {
 
         // 3. computeBlurAndZoomOut()
         try {
-            XposedHelpers.findAndHookMethod(
-                depthControllerClass,
-                "computeBlurAndZoomOut",
+            val computation = depthControllerClass.getDeclaredMethod("computeBlurAndZoomOut")
+            val resultType = computation.returnType
+            XposedBridge.hookMethod(
+                computation,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val config = ConfigManager.current
                         if (!config.isEffectiveEnabled) return
 
-                        @Suppress("UNCHECKED_CAST")
-                        val result = param.result as? Pair<Int, Float> ?: return
-                        val currentRadius = result.first
-                        val currentZoomOut = result.second
-
+                        val result = param.result ?: return
                         val shadeExp = shadeExpansionField?.getFloat(param.thisObject) ?: 0f
                         val qsExp = qsPanelExpansionField?.getFloat(param.thisObject) ?: 0f
-                        val maxExp = if (shadeExp > qsExp) shadeExp else qsExp
+                        val expansion = maxOf(shadeExp, qsExp)
 
-                        if (maxExp > 0.01f) {
-                            val intensityRatio = config.animationIntensityPercent / 100f
-                            val effectiveExp = (maxExp * intensityRatio).coerceIn(0f, 1f)
-
-                            // Performance optimization: skip recalculation if expansion is identical
-                            if (config.reduceRerenders && Math.abs(effectiveExp - lastComputedExpansion) < 0.001f && lastComputedRadius >= 0) {
-                                param.result = Pair(lastComputedRadius, currentZoomOut)
-                                return
+                        if (expansion > 0.01f) {
+                            val radius = FrostedBackdrop.radius(config, expansion)
+                            when {
+                                result is Pair<*, *> && result.first != radius -> {
+                                    param.result = Pair(radius, result.second)
+                                }
+                                resultType.name == "kotlin.Pair" -> {
+                                    if (XposedHelpers.callMethod(result, "getFirst") == radius) return
+                                    val zoom = XposedHelpers.callMethod(result, "getSecond")
+                                    param.result = XposedHelpers.newInstance(resultType, radius, zoom)
+                                }
                             }
-
-                            val baseRadius = (config.blurRadius * effectiveExp).toInt()
-                            val targetRadius = if (config.blurQualityPreset == 1) {
-                                (baseRadius * 0.85f).toInt()
-                            } else {
-                                baseRadius
-                            }
-
-                            val adjustedRadius = if (currentRadius <= 0) targetRadius else {
-                                val ratio = currentRadius.toFloat() / 45f
-                                (ratio * targetRadius).toInt().coerceAtLeast(targetRadius)
-                            }
-                            lastComputedExpansion = effectiveExp
-                            lastComputedRadius = adjustedRadius
-                            param.result = Pair(adjustedRadius, currentZoomOut)
                         }
                     }
                 }

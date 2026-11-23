@@ -1,4 +1,14 @@
-# Nothing Glass
+# Nothing Glass Translucent
+
+Local fork of [Nothing Glass 1.1.1 by ShinysLove](https://github.com/ShinysLove/NothingGlass).
+The shade uses a softer blur transition and a frosted tint with fine grain. In wallpaper
+palette mode, it uses the Lucent backdrop color from System UI when available and falls
+back to Android's wallpaper palette. Android composites the live backdrop.
+
+This fork has its own package ID, `com.nothing.glass.translucent`. Enable only one
+Nothing Glass module in Vector or LSPosed, since both target `com.android.systemui`.
+The hook signatures were checked against Phone (3a) firmware `C5.0-261106-1007`.
+Visual behavior on that phone still needs a device test.
 
 An LSPosed / Vector module that adds dark frosted glass to the notification shade, quick settings, notification cards, and volume panel on Nothing OS.
 
@@ -52,14 +62,14 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
 To disable the module's hooks through ADB:
 
 ```bash
-adb shell su -c 'touch /data/local/tmp/nothing_glass_disable'
+adb shell su -c 'touch /data/local/tmp/nothing_glass_translucent_disable'
 adb shell su -c 'pkill -f com.android.systemui'
 ```
 
 To remove the emergency flag after fixing a configuration:
 
 ```bash
-adb shell su -c 'rm /data/local/tmp/nothing_glass_disable'
+adb shell su -c 'rm /data/local/tmp/nothing_glass_translucent_disable'
 ```
 
 Disabling the module in LSPosed / Vector and restarting SystemUI is another recovery option.

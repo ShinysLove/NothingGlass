@@ -25,7 +25,7 @@
     <string name="ui_pure_dark">Тёмный оникс</string>
     <string name="ui_midnight_navy">Полночный синий</string>
     <string name="ui_deep_charcoal">Глубокий графит</string>
-    <string name="ui_wallpaper_monet_system_palette">Обои + Monet (системная палитра)</string>
+    <string name="ui_wallpaper_monet_system_palette">Палитра обоев (Lucent или Monet)</string>
     <string name="ui_wallpaper_color">Цвет из обоев</string>
     <string name="ui_generate_from_wallpaper">Сгенерировать из обоев</string>
     <string name="ui_notification_area">Область уведомлений</string>

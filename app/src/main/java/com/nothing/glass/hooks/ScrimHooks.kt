@@ -1,5 +1,6 @@
 package com.nothing.glass.hooks
 
+import android.content.Context
 import android.view.View
 import androidx.core.graphics.ColorUtils
 import com.nothing.glass.HookEntry
@@ -88,10 +89,11 @@ object ScrimHooks {
                             if (stateName.contains("UNLOCKED") || stateName.contains("SHADE") || stateName.contains("KEYGUARD")) {
                                 val panelExpansion = mPanelExpansionField?.getFloat(scrimController) ?: 1f
                                 val behindAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
-                                val behindTint = config.tintColorInt
+                                val scrimBehind = mScrimBehindField?.get(scrimController) as? View
+                                val behindTint = FrostedBackdrop.tint(scrimBehind?.context, config)
 
                                 val notifAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
-                                val notifTint = if (config.notifScrimEnabled) config.notifScrimTintColorInt else config.tintColorInt
+                                val notifTint = if (config.notifScrimEnabled) config.notifScrimTintColorInt else behindTint
 
                                 mBehindAlphaField?.setFloat(scrimController, behindAlpha)
                                 mBehindTintField?.setInt(scrimController, behindTint)
@@ -99,7 +101,6 @@ object ScrimHooks {
                                 mNotificationsTintField?.setInt(scrimController, notifTint)
                                 mClipsQsScrimField?.setBoolean(scrimController, false)
 
-                                val scrimBehind = mScrimBehindField?.get(scrimController) as? View
                                 scrimBehind?.alpha = (behindAlpha * config.qsBackgroundAlpha).coerceIn(0f, 1f)
 
                                 val scrimNotif = mNotificationsScrimField?.get(scrimController) as? View
@@ -139,12 +140,13 @@ object ScrimHooks {
 
                         if (scrimName == "notifications_scrim") {
                             val ratio = if (config.notifScrimEnabled) config.notifScrimAlpha else config.qsBackgroundAlpha
-                            val notifTint = if (config.notifScrimEnabled) config.notifScrimTintColorInt else config.tintColorInt
+                            val notifTint = if (config.notifScrimEnabled) config.notifScrimTintColorInt
+                                else FrostedBackdrop.tint(scrimView.context, config)
                             param.args[1] = (originalAlpha * ratio).coerceIn(0.0f, 1.0f)
                             param.args[2] = notifTint
                         } else {
                             param.args[1] = (originalAlpha * config.qsBackgroundAlpha).coerceIn(0.0f, 1.0f)
-                            param.args[2] = config.tintColorInt
+                            param.args[2] = FrostedBackdrop.tint(scrimView.context, config)
                         }
                     }
                 }
@@ -167,6 +169,7 @@ object ScrimHooks {
         HookEntry.log("[+] Found class: com.android.systemui.shade.ui.ShadeColors")
 
         for (method in shadeColorsClass.declaredMethods) {
+            if (method.returnType != Int::class.javaPrimitiveType) continue
             when (method.name) {
                 "shadePanel", "shadePanelScrimBehind", "shadePanelStandard", "shadePanelFallback" -> {
                     try {
@@ -177,7 +180,8 @@ object ScrimHooks {
                                     return XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
                                 }
                                 val targetAlpha = (config.qsBackgroundAlpha * 255).toInt().coerceIn(0, 255)
-                                return ColorUtils.setAlphaComponent(config.tintColorInt, targetAlpha)
+                                val context = param.args.firstOrNull() as? Context
+                                return ColorUtils.setAlphaComponent(FrostedBackdrop.tint(context, config), targetAlpha)
                             }
                         })
                         HookEntry.log("[+] Hooked ShadeColors.${method.name}() [${method.parameterTypes.joinToString { it.simpleName }}]")
@@ -201,7 +205,7 @@ object ScrimHooks {
                                 val targetTint = if (config.notifScrimEnabled) {
                                     config.notifScrimTintColorInt
                                 } else {
-                                    config.tintColorInt
+                                    FrostedBackdrop.tint(param.args.firstOrNull() as? Context, config)
                                 }
                                 return ColorUtils.setAlphaComponent(targetTint, targetAlpha)
                             }

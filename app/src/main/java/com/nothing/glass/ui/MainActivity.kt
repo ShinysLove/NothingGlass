@@ -664,9 +664,9 @@ class MainActivity : AppCompatActivity() {
             try {
                 val p = Runtime.getRuntime().exec("su")
                 val os = DataOutputStream(p.outputStream)
-                os.writeBytes("chmod 755 /data/data/com.nothing.glass\n")
-                os.writeBytes("chmod 777 /data/data/com.nothing.glass/shared_prefs\n")
-                os.writeBytes("chmod 666 /data/data/com.nothing.glass/shared_prefs/nothing_glass_prefs.xml\n")
+                os.writeBytes("chmod 755 /data/data/$packageName\n")
+                os.writeBytes("chmod 777 /data/data/$packageName/shared_prefs\n")
+                os.writeBytes("chmod 666 /data/data/$packageName/shared_prefs/${GlassConfig.PREFS_NAME}.xml\n")
                 os.writeBytes("exit\n")
                 os.flush()
                 p.waitFor()

@@ -8,11 +8,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.nothing.glass"
+        applicationId = "com.nothing.glass.translucent"
         minSdk = 31
         targetSdk = 34
         versionCode = 109
-        versionName = "1.1.1"
+        versionName = "1.1.1-translucent"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
