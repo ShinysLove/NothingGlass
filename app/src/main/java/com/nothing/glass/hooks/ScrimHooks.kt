@@ -93,7 +93,9 @@ object ScrimHooks {
                                 val behindTint = FrostedBackdrop.tint(scrimBehind?.context, config)
 
                                 val notifAlpha = panelExpansion.coerceIn(0.0f, 1.0f)
-                                val notifTint = if (config.notifScrimEnabled) config.notifScrimTintColorInt else behindTint
+                                val notifTint = if (config.notifScrimEnabled) {
+                                    FrostedBackdrop.notificationScrimTint(scrimBehind?.context, config)
+                                } else behindTint
 
                                 mBehindAlphaField?.setFloat(scrimController, behindAlpha)
                                 mBehindTintField?.setInt(scrimController, behindTint)
@@ -140,7 +142,7 @@ object ScrimHooks {
 
                         if (scrimName == "notifications_scrim") {
                             val ratio = if (config.notifScrimEnabled) config.notifScrimAlpha else config.qsBackgroundAlpha
-                            val notifTint = if (config.notifScrimEnabled) config.notifScrimTintColorInt
+                            val notifTint = if (config.notifScrimEnabled) FrostedBackdrop.notificationScrimTint(scrimView.context, config)
                                 else FrostedBackdrop.tint(scrimView.context, config)
                             param.args[1] = (originalAlpha * ratio).coerceIn(0.0f, 1.0f)
                             param.args[2] = notifTint
@@ -203,7 +205,7 @@ object ScrimHooks {
                                     (config.qsBackgroundAlpha * 255).toInt().coerceIn(0, 255)
                                 }
                                 val targetTint = if (config.notifScrimEnabled) {
-                                    config.notifScrimTintColorInt
+                                    FrostedBackdrop.notificationScrimTint(param.args.firstOrNull() as? Context, config)
                                 } else {
                                     FrostedBackdrop.tint(param.args.firstOrNull() as? Context, config)
                                 }

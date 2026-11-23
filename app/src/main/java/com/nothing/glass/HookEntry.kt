@@ -6,6 +6,7 @@ import com.nothing.glass.config.ConfigManager
 import com.nothing.glass.config.GlassConfig
 import com.nothing.glass.hooks.BlurHooks
 import com.nothing.glass.hooks.FlagHooks
+import com.nothing.glass.hooks.FooterGlassHooks
 import com.nothing.glass.hooks.NotificationHooks
 import com.nothing.glass.hooks.ScrimHooks
 import com.nothing.glass.hooks.ScrimViewHooks
@@ -180,6 +181,7 @@ class HookEntry : IXposedHookLoadPackage, IXposedHookZygoteInit {
             installHookGroup("ScrimViewHooks") { ScrimViewHooks.install(classLoader) }
             installHookGroup("TileHooks") { TileHooks.install(classLoader) }
             installHookGroup("NotificationHooks") { NotificationHooks.install(classLoader) }
+            installHookGroup("FooterGlassHooks") { FooterGlassHooks.install(classLoader) }
             installHookGroup("VolumeHooks") { VolumeHooks.install(classLoader) }
             installHookGroup("KeyguardGlassHooks") { KeyguardGlassHooks.install(classLoader) }
 

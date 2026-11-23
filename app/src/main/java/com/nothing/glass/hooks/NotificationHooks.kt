@@ -3,10 +3,14 @@ package com.nothing.glass.hooks
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.app.KeyguardManager
 import android.content.Context
 import androidx.core.graphics.ColorUtils
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -20,6 +24,14 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 
 object NotificationHooks {
+    private const val CARD_TINT = "nothingGlassWallpaperCardTint"
+
+    private class AppliedTint(
+        val layer: Drawable,
+        val original: ColorFilter?,
+        val color: Int,
+        val filter: PorterDuffColorFilter
+    )
 
     // Cached Reflection Fields for 120Hz Zero-Allocation Draw
     private var mBackgroundField: Field? = null
@@ -107,9 +119,11 @@ object NotificationHooks {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         try {
                             val config = ConfigManager.current
-                            if (!config.isEffectiveEnabled) return
-
                             val bgView = param.thisObject as? View ?: return
+                            if (!config.isEffectiveEnabled) {
+                                restoreCardTint(bgView)
+                                return
+                            }
                             // Legacy XML inflates an unused backgroundDimmed. Do not synthesize a second plate.
                             if (mBackgroundField?.get(bgView) == null && mCornerAnomalyOwnerField?.get(bgView) == null) {
                                 val stale = mBackgroundBlurDrawableField?.get(bgView) as? Drawable
@@ -122,7 +136,10 @@ object NotificationHooks {
                             val isHeadsUp = checkIfHeadsUp(bgView)
 
                             val isGlassEnabled = if (isHeadsUp) config.headsUpGlassEnabled else config.notifGlassEnabled
-                            if (!isGlassEnabled) return
+                            if (!isGlassEnabled) {
+                                restoreCardTint(bgView)
+                                return
+                            }
 
                             if (isHeadsUp || isKeyguard(bgView)) {
                                 if ((!isHeadsUp || config.headsUpBlurEnabled) &&
@@ -186,16 +203,21 @@ object NotificationHooks {
                             // NEVER draw manual substrates or custom paths on canvas!
                             // Nothing OS's mBackground already handles the exact squircle/pill geometry,
                             // grouped notification clipping, dividers, and ripple effects naturally.
-                            val targetAlphaFloat = config.notifCardAlpha
+                            val targetAlphaFloat = if (isHeadsUp) config.headsUpAlpha else config.notifCardAlpha
                             val targetAlphaInt = (targetAlphaFloat * 255).toInt().coerceIn(0, 255)
                             try {
                                 val bg = mBackgroundField?.get(bgView) as? Drawable
-                                bg?.clearColorFilter()
                                 val owner = mCornerAnomalyOwnerField?.get(bgView) ?: bgView.parent
                                 val essential = try { XposedHelpers.getBooleanField(owner, "mIsEssentialBackground") }
                                     catch (_: Throwable) { false }
-                                // The outlined section owns this background, avoiding double tint.
-                                bg?.alpha = if (essential && !isHeadsUp && !isKeyguard(bgView)) 0 else targetAlphaInt
+                                if (essential && !isHeadsUp && !isKeyguard(bgView)) {
+                                    restoreCardTint(bgView)
+                                    bg?.alpha = 0
+                                } else if (bg != null) {
+                                    val tint = FrostedBackdrop.notificationTint(bgView.context, config, isHeadsUp)
+                                    applyCardTint(bgView, bg, tint)
+                                    bg.alpha = targetAlphaInt
+                                }
                             } catch (_: Throwable) {}
 
                             // 3. Modulate the notification icon's white circular background badge!
@@ -289,6 +311,29 @@ object NotificationHooks {
         } catch (t: Throwable) {
             HookEntry.logError("[-] Error hooking NotificationBackgroundView.setBlurBackgroundEnabled", t)
         }
+    }
+
+    private fun applyCardTint(view: View, background: Drawable, color: Int) {
+        // A ripple's first layer is its plate. Leave its feedback and other layers intact.
+        val layer = if (background is LayerDrawable && background.numberOfLayers > 0) {
+            background.getDrawable(0)
+        } else background
+        var tint = XposedHelpers.getAdditionalInstanceField(view, CARD_TINT) as? AppliedTint
+        if (tint?.layer !== layer) {
+            restoreCardTint(view)
+            tint = null
+        }
+        if (tint == null || tint.color != color) {
+            val original = if (tint != null) tint.original else layer.colorFilter
+            tint = AppliedTint(layer, original, color, PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN))
+            XposedHelpers.setAdditionalInstanceField(view, CARD_TINT, tint)
+        }
+        if (layer.colorFilter !== tint.filter) layer.colorFilter = tint.filter
+    }
+
+    private fun restoreCardTint(view: View) {
+        val tint = XposedHelpers.removeAdditionalInstanceField(view, CARD_TINT) as? AppliedTint ?: return
+        if (tint.layer.colorFilter === tint.filter) tint.layer.colorFilter = tint.original
     }
 
     private fun hookActivatableNotificationView(classLoader: ClassLoader) {
@@ -440,7 +485,8 @@ object NotificationHooks {
                 val background = param.args.firstOrNull() as? android.graphics.drawable.ColorDrawable ?: return
                 val essential = try { XposedHelpers.getBooleanField(param.thisObject, "mIsEssentialBackground") }
                     catch (_: Throwable) { false }
-                background.color = ColorUtils.setAlphaComponent(config.notifCardTintColorInt,
+                val view = param.thisObject as? View ?: return
+                background.color = ColorUtils.setAlphaComponent(FrostedBackdrop.notificationTint(view.context, config),
                     if (essential) 0 else (config.notifCardAlpha * 255).toInt())
             }
         })
@@ -455,7 +501,9 @@ object NotificationHooks {
             val config = ConfigManager.current
             if (config.isEffectiveEnabled && config.notifGlassEnabled) {
                 val plate = XposedHelpers.getObjectField(view, "drawable") as? android.graphics.drawable.GradientDrawable
-                val color = ColorUtils.setAlphaComponent(config.notifCardTintColorInt, (config.notifCardAlpha * 255).toInt())
+                val color = ColorUtils.setAlphaComponent(
+                    FrostedBackdrop.notificationTint(view.context, config), (config.notifCardAlpha * 255).toInt()
+                )
                 if (plate != null && (plate.color?.defaultColor != color ||
                     XposedHelpers.getAdditionalInstanceField(view, "nothingGlassEssentialStyled") != true)) {
                     plate.setColor(color)
@@ -578,10 +626,14 @@ object NotificationHooks {
                 setBlurRadiusMethod?.invoke(blurDrawable, targetRadius)
                 val config = ConfigManager.current
                 val backdropColor = if (checkIfHeadsUp(bgView)) {
-                    // Match the shade scrim plus the unchanged stock card drawn on top.
-                    ColorUtils.setAlphaComponent(config.notifScrimTintColorInt, (config.notifScrimAlpha * 255).toInt())
+                    ColorUtils.setAlphaComponent(
+                        FrostedBackdrop.notificationTint(bgView.context, config, headsUp = true),
+                        (config.headsUpTintAlpha * 255).toInt()
+                    )
                 } else if (isKeyguard(bgView)) {
-                    ColorUtils.setAlphaComponent(config.notifCardTintColorInt, (config.notifCardTintAlpha * 255).toInt())
+                    ColorUtils.setAlphaComponent(
+                        FrostedBackdrop.notificationTint(bgView.context, config), (config.notifCardTintAlpha * 255).toInt()
+                    )
                 } else Color.TRANSPARENT
                 setBlurColorMethod?.invoke(blurDrawable, backdropColor)
                 blurDrawable.alpha = targetAlpha

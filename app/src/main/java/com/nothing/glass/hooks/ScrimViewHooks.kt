@@ -91,7 +91,7 @@ object ScrimViewHooks {
 
                         if (scrimName == "notifications_scrim") {
                             val view = param.thisObject as? View
-                            param.args[0] = if (config.notifScrimEnabled) config.notifScrimTintColorInt
+                            param.args[0] = if (config.notifScrimEnabled) FrostedBackdrop.notificationScrimTint(view?.context, config)
                                 else FrostedBackdrop.tint(view?.context, config)
                         } else if (scrimName != "front_scrim") {
                             val view = param.thisObject as? View
@@ -132,7 +132,7 @@ object ScrimViewHooks {
                                 "notifications_scrim" -> {
                                     if (!config.notifScrimEnabled || !config.notifScrimGradientEnabled) return
                                     notificationShader.get(
-                                        bounds, config.notifScrimTintColorInt,
+                                        bounds, FrostedBackdrop.notificationScrimTint(view.context, config),
                                         config.notifScrimGradientStrength, canvas.isHardwareAccelerated
                                     )
                                 }

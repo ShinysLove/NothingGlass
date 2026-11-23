@@ -163,7 +163,9 @@ class MainActivity : AppCompatActivity() {
         val notifScrimEnabled = prefs.getBoolean(GlassConfig.KEY_NOTIF_SCRIM_ENABLED, GlassConfig.DEFAULT_NOTIF_SCRIM_ENABLED)
         val notifScrimOpacity = prefs.getInt(GlassConfig.KEY_NOTIF_SCRIM_OPACITY, GlassConfig.DEFAULT_NOTIF_SCRIM_OPACITY)
         val notifScrimGradient = prefs.getBoolean(GlassConfig.KEY_NOTIF_SCRIM_GRADIENT_ENABLED, GlassConfig.DEFAULT_NOTIF_SCRIM_GRADIENT_ENABLED)
-        val notifScrimTint = prefs.getString(GlassConfig.KEY_NOTIF_SCRIM_TINT, GlassConfig.DEFAULT_NOTIF_SCRIM_TINT_HEX) ?: GlassConfig.DEFAULT_NOTIF_SCRIM_TINT_HEX
+        val notifScrimTint = GlassConfig.normalizeNotificationTint(
+            prefs.getString(GlassConfig.KEY_NOTIF_SCRIM_TINT, null) ?: GlassConfig.DEFAULT_NOTIF_SCRIM_TINT_HEX
+        )
 
         binding.switchNotifScrim.isChecked = notifScrimEnabled
         binding.sliderNotifScrimOpacity.value = notifScrimOpacity.toFloat().coerceIn(0f, 100f)

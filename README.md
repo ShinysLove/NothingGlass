@@ -5,6 +5,10 @@ The shade uses a softer blur transition and a frosted tint with fine grain. In w
 palette mode, it uses the Lucent backdrop color from System UI when available and falls
 back to Android's wallpaper palette. Android composites the live backdrop.
 
+Notification cards and heads-up alerts use the wallpaper palette in their default mode.
+The buttons to clear notifications, open history, and open notification settings use
+the same glass shader with a rounded per-button backdrop.
+
 This fork has its own package ID, `com.nothing.glass.translucent`. Enable only one
 Nothing Glass module in Vector or LSPosed, since both target `com.android.systemui`.
 The hook signatures were checked against Phone (3a) firmware `C5.0-261106-1007`.

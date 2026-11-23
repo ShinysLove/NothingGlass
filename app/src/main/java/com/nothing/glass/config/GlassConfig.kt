@@ -103,7 +103,7 @@ data class GlassConfig(
         get() = (notifScrimOpacityPercent.coerceIn(0, 100) / 100f)
 
     val notifScrimTintColorInt: Int
-        get() = safeParseColor(notifScrimTintHex, DEFAULT_NOTIF_SCRIM_TINT_HEX)
+        get() = safeParseColor(normalizeNotificationTint(notifScrimTintHex), DEFAULT_NOTIF_SCRIM_TINT_HEX)
 
     val notifScrimGradientStrength: Float
         get() = (notifScrimGradientStrengthPercent.coerceIn(10, 100) / 100f)
@@ -116,7 +116,7 @@ data class GlassConfig(
         get() = (notifCardTintOpacityPercent.coerceIn(0, 100) / 100f)
 
     val notifCardTintColorInt: Int
-        get() = safeParseColor(notifCardTintHex, DEFAULT_NOTIF_CARD_TINT_HEX)
+        get() = safeParseColor(normalizeNotificationTint(notifCardTintHex), DEFAULT_NOTIF_CARD_TINT_HEX)
 
     val notifBorderAlpha: Float
         get() = (notifBorderAlphaPercent.coerceIn(0, 100) / 100f)
@@ -129,7 +129,7 @@ data class GlassConfig(
         get() = (headsUpTintOpacityPercent.coerceIn(0, 100) / 100f)
 
     val headsUpTintColorInt: Int
-        get() = safeParseColor(headsUpTintHex, DEFAULT_HEADSUP_TINT_HEX)
+        get() = safeParseColor(normalizeNotificationTint(headsUpTintHex), DEFAULT_HEADSUP_TINT_HEX)
 
     // QS Tile alphas
     val tileAlpha: Float
@@ -267,7 +267,7 @@ data class GlassConfig(
         // Defaults C
         const val DEFAULT_NOTIF_SCRIM_ENABLED = true
         const val DEFAULT_NOTIF_SCRIM_OPACITY = 17
-        const val DEFAULT_NOTIF_SCRIM_TINT_HEX = NEUTRAL_TINT
+        const val DEFAULT_NOTIF_SCRIM_TINT_HEX = WALLPAPER_MONET
         const val DEFAULT_NOTIF_SCRIM_GRADIENT_ENABLED = true
         const val DEFAULT_NOTIF_SCRIM_GRADIENT_STRENGTH = 50
 
@@ -275,7 +275,7 @@ data class GlassConfig(
         const val DEFAULT_NOTIF_GLASS_ENABLED = true
         const val DEFAULT_NOTIF_CARD_ALPHA = 42
         const val DEFAULT_NOTIF_CARD_TINT_OPACITY = 15
-        const val DEFAULT_NOTIF_CARD_TINT_HEX = NEUTRAL_TINT
+        const val DEFAULT_NOTIF_CARD_TINT_HEX = WALLPAPER_MONET
         const val DEFAULT_NOTIF_CARD_BLUR_ENABLED = false // Unified Backdrop Blur used by default
         const val DEFAULT_NOTIF_CARD_BLUR_RADIUS = 35 // 30-45 px
         const val DEFAULT_NOTIF_CARD_CORNER_RADIUS_DP = 28 // 28 dp standard Nothing OS pill
@@ -290,7 +290,7 @@ data class GlassConfig(
         const val DEFAULT_HEADSUP_TINT_OPACITY = 44
         const val DEFAULT_HEADSUP_BLUR_ENABLED = true
         const val DEFAULT_HEADSUP_BLUR_RADIUS = 35 // 30-45 px
-        const val DEFAULT_HEADSUP_TINT_HEX = NEUTRAL_TINT
+        const val DEFAULT_HEADSUP_TINT_HEX = WALLPAPER_MONET
 
         // Defaults F
         const val DEFAULT_TILE_OPACITY = 70
@@ -322,6 +322,10 @@ data class GlassConfig(
         const val DEFAULT_REDUCE_RERENDERS = true
         const val DEFAULT_CACHE_RESOURCES = true
         const val DEFAULT_DISABLE_PER_CARD_FALLBACK = true
+
+        // Migrate the previous default swatch. Other saved color choices stay selectable.
+        fun normalizeNotificationTint(tint: String): String =
+            if (tint.equals(NEUTRAL_TINT, ignoreCase = true)) WALLPAPER_MONET else tint
 
         private fun safeParseColor(colorStr: String, fallback: String): Int {
             if (colorStr == WALLPAPER_MONET) {

@@ -27,10 +27,23 @@ internal object FrostedBackdrop {
         }.getOrNull()
     }
 
-    fun tint(context: Context?, config: GlassConfig): Int {
-        val fallback = config.tintColorInt
+    fun tint(context: Context?, config: GlassConfig): Int =
+        resolveTint(context, config.tintHex, config.tintColorInt)
+
+    fun notificationTint(context: Context, config: GlassConfig, headsUp: Boolean = false): Int {
+        val spec = if (headsUp) config.headsUpTintHex else config.notifCardTintHex
+        val fallback = if (headsUp) config.headsUpTintColorInt else config.notifCardTintColorInt
+        return resolveTint(context, GlassConfig.normalizeNotificationTint(spec), fallback)
+    }
+
+    fun notificationScrimTint(context: Context?, config: GlassConfig): Int =
+        resolveTint(
+            context, GlassConfig.normalizeNotificationTint(config.notifScrimTintHex), config.notifScrimTintColorInt
+        )
+
+    private fun resolveTint(context: Context?, spec: String, fallback: Int): Int {
         val lucent = palette ?: return fallback
-        if (context == null || config.tintHex != GlassConfig.WALLPAPER_MONET) return fallback
+        if (context == null || spec != GlassConfig.WALLPAPER_MONET) return fallback
         val color = runCatching {
             lucent.resolve.invoke(lucent.receiver, context, lucent.backdropName) as Int
         }.getOrDefault(Color.TRANSPARENT)
