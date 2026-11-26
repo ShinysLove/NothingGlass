@@ -4,3 +4,5 @@ bin/compiled_res/
 bin/*.idsig
 bin/*.png
 bin/*.xml
+/.build/
+/bin/NothingBlurPanels.apk

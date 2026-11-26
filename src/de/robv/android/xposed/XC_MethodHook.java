@@ -17,6 +17,8 @@ public abstract class XC_MethodHook {
         public void setResult(Object result) { this.result = result; this.throwable = null; }
         public Throwable getThrowable() { return throwable; }
         public void setThrowable(Throwable throwable) { this.throwable = throwable; this.result = null; }
+        public Object getObjectExtra(String key) { return null; }
+        public void setObjectExtra(String key, Object value) {}
     }
 
     public static class Unhook {

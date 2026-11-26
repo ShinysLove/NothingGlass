@@ -4,7 +4,7 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-echo "=== Building NothingBlurShortcuts LSPosed Module ==="
+echo "=== Building Nothing Blur Panels LSPosed module ==="
 
 BUILD_ENV="${BUILD_ENV:-$DIR/build_env}"
 ANDROID_JAR="${ANDROID_JAR:-$BUILD_ENV/android.jar}"
@@ -33,10 +33,11 @@ fi
 "$AAPT2_CMD" link -I "$ANDROID_JAR" --manifest AndroidManifest.xml bin/compiled_res/*.flat -o bin/app-base.apk
 
 echo "[2/5] Compiling Java sources..."
-"$JAVAC_BIN" -cp "$ANDROID_JAR" -d bin/classes $(find src -name "*.java")
+"$JAVAC_BIN" --release 11 -cp "$ANDROID_JAR" -d bin/classes $(find src -name "*.java")
 
 echo "[3/5] Desugaring & compiling to DEX (D8)..."
 "$JAVA_BIN" -cp "$R8_JAR" com.android.tools.r8.D8 \
+    --min-api 36 \
     --classpath bin/classes \
     --lib "$ANDROID_JAR" \
     --output bin/dex \
@@ -51,6 +52,6 @@ echo "[5/5] Aligning & Signing APK..."
 cd bin
 "$JAVA_BIN" -jar "$SIGNER_JAR" -a unaligned.apk --allowResign -o .
 
-mv unaligned-aligned-debugSigned.apk NothingBlurShortcuts.apk
+mv unaligned-aligned-debugSigned.apk NothingBlurPanels.apk
 rm -f unaligned.apk app-base.apk
-echo "=== Success! Output: bin/NothingBlurShortcuts.apk ==="
+echo "=== Success! Output: bin/NothingBlurPanels.apk ==="

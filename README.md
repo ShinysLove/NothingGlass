@@ -1,4 +1,30 @@
-# NothingBlurShortcuts 🪟🔒✨
+# Nothing Blur Panels
+
+Форк [NothingBlurShortcuts](https://github.com/Ak1o-T/NothingBlurShortcuts) для Nothing OS 5 и
+Android 17. Дополняет исходный модуль поддержкой раздельных панелей. Использует фоновое
+размытие SystemUI и добавляет полупрозрачную подложку с тонким кантом на обычные карточки
+уведомлений и плитки быстрых настроек. Карточки с цветом приложения сохраняют свой цвет.
+
+Хуки сверены с SystemUI из `Asteroids C5.0-261023-2146`. Для эффекта требуется, чтобы на
+устройстве было включено системное межоконное размытие. Проверка на телефоне ещё не проводилась.
+
+1. Установите `NothingBlurPanels-0.1.0.apk` как приложение.
+2. В LSPosed/Vector включите **Nothing Blur Panels** и отметьте **System UI**
+   (`com.android.systemui`). Для SukiSU нужна рабочая связка Zygisk и LSPosed/Vector.
+3. Если включён оригинальный **NothingBlurShortcuts** или другой модуль, который меняет
+   стекло в SystemUI, отключите его для проверки форка и перезагрузите телефон.
+4. Проверьте оба свайпа отдельно. Для отката выключите форк в LSPosed и перезагрузитесь.
+
+Для сборки на Windows нужны JDK, Android SDK Platform 37.0 и Build Tools 36.0.0.
+Команда `./build.ps1` собирает `bin/NothingBlurPanels.apk`. Локальный ключ хранится в
+`.build/local-debug.p12`. Сборка на Linux использует исходный `build.sh` и путь
+`BUILD_ENV` к инструментам, включая Android 37 `android.jar`.
+
+---
+
+## NothingBlurShortcuts 🪟🔒✨
+
+Ниже приведена документация оригинального модуля.
 
 [![Nothing OS](https://img.shields.io/badge/Nothing%20OS-5.0-black?style=for-the-badge&logo=android)](https://nothing.tech)
 [![Android](https://img.shields.io/badge/Android-17-green?style=for-the-badge&logo=android)](https://nothing.tech)

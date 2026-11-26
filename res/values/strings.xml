@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NothingBlurShortcuts</string>
+    <string name="app_name">Nothing Blur Panels</string>
+    <string name="module_description">Frosted glass for the notification shade and Quick Settings on Nothing OS 5</string>
 </resources>

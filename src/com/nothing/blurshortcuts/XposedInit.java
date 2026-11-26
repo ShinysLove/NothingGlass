@@ -47,7 +47,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class XposedInit implements IXposedHookLoadPackage {
 
-    private static final String TAG = "NothingBlurShortcuts";
+    private static final String TAG = "NothingBlurPanels";
 
     private static Class<?> drawableClass;
     private static Method setClipRadiusMethod;
@@ -161,6 +161,10 @@ public class XposedInit implements IXposedHookLoadPackage {
     private static Field sActualHeightField = null;
     private static Field sClipTopAmountField = null;
     private static Field sClipBottomAmountField = null;
+    private static Field sTopOverlapField = null;
+    private static Field sBottomOverlapField = null;
+    private static Field sExpandAnimationRunningField = null;
+    private static Field sDrawDismissButtonCutoutField = null;
     private static Field sBackgroundBlurDrawableField = null;
     private static Field sBackgroundNormalField = null;
     private static Field sBackgroundDimmedField = null;
@@ -286,7 +290,7 @@ public class XposedInit implements IXposedHookLoadPackage {
             return;
         }
 
-        Log.e(TAG, "NothingBlurShortcuts handleLoadPackage in com.android.systemui");
+        Log.i(TAG, "Loading in com.android.systemui");
 
         try {
             XposedBridge.hookAllMethods(Application.class, "onCreate", new XC_MethodHook() {
@@ -315,6 +319,8 @@ public class XposedInit implements IXposedHookLoadPackage {
         } catch (Throwable ignored) {
             return;
         }
+
+        PanelGlassHooks.install(cl);
 
         // 1. Enable SystemUI Lockscreen Blur Feature Flags
         try {
@@ -1611,6 +1617,10 @@ public class XposedInit implements IXposedHookLoadPackage {
             try { sActualHeightField = notifBgClass.getDeclaredField("mActualHeight"); sActualHeightField.setAccessible(true); } catch (Throwable ignored) {}
             try { sClipTopAmountField = notifBgClass.getDeclaredField("mClipTopAmount"); sClipTopAmountField.setAccessible(true); } catch (Throwable ignored) {}
             try { sClipBottomAmountField = notifBgClass.getDeclaredField("mClipBottomAmount"); sClipBottomAmountField.setAccessible(true); } catch (Throwable ignored) {}
+            try { sTopOverlapField = notifBgClass.getDeclaredField("mTopOverlap"); sTopOverlapField.setAccessible(true); } catch (Throwable ignored) {}
+            try { sBottomOverlapField = notifBgClass.getDeclaredField("mBottomOverlap"); sBottomOverlapField.setAccessible(true); } catch (Throwable ignored) {}
+            try { sExpandAnimationRunningField = notifBgClass.getDeclaredField("mExpandAnimationRunning"); sExpandAnimationRunningField.setAccessible(true); } catch (Throwable ignored) {}
+            try { sDrawDismissButtonCutoutField = notifBgClass.getDeclaredField("mDrawDismissButtonCutout"); sDrawDismissButtonCutoutField.setAccessible(true); } catch (Throwable ignored) {}
             try { sBackgroundBlurDrawableField = notifBgClass.getDeclaredField("mBackgroundBlurDrawable"); sBackgroundBlurDrawableField.setAccessible(true); } catch (Throwable ignored) {}
             try { sTintColorField = notifBgClass.getDeclaredField("mTintColor"); sTintColorField.setAccessible(true); } catch (Throwable ignored) {}
             try { sNormalColorField = notifBgClass.getDeclaredField("mNormalColor"); sNormalColorField.setAccessible(true); } catch (Throwable ignored) {}
@@ -1898,16 +1908,20 @@ public class XposedInit implements IXposedHookLoadPackage {
                             || (row != null && row.getClass().getName().contains("Shelf"))
                             || (shelfCls != null && row != null && shelfCls.isAssignableFrom(row.getClass()));
 
-                    // Fast-path for pure Shade mode (Home / App -> Notification Shade):
-                    // Skip all view-tree walks, reflection, and clipPath overhead, and let stock
-                    // NotificationBackgroundView.onDraw execute natively at full 120Hz!
-                    if (sStatusBarStateController != null && getCurrentStatusBarState() == 0 && sStatusBarState == 0) {
-                        if (isShelf || !isRowHun(row)) {
-                            if (Boolean.TRUE.equals(bgView.getTag(TAG_KEY_BLUR_ACTIVE))) {
-                                cleanupBlur(bgView);
-                            }
-                            return;
+                    int curState = getCurrentStatusBarState();
+                    boolean isHun = !isShelf && isRowHun(row);
+                    boolean pureShade = curState == 0 && sStatusBarState == 0;
+                    boolean canDrawShadeGlass = !isHun && isShadeExpanded()
+                            && PanelGlassHooks.isNotificationBackdropEnabled(ctx);
+                    if (canDrawShadeGlass) {
+                        if ((sExpandAnimationRunningField != null && sExpandAnimationRunningField.getBoolean(bgView))
+                                || (sDrawDismissButtonCutoutField != null && sDrawDismissButtonCutoutField.getBoolean(bgView))) {
+                            canDrawShadeGlass = false;
                         }
+                    }
+                    if (pureShade && !isHun && !canDrawShadeGlass) {
+                        if (Boolean.TRUE.equals(bgView.getTag(TAG_KEY_BLUR_ACTIVE))) cleanupBlur(bgView);
+                        return;
                     }
 
                     boolean isChildOfGroup = false;
@@ -2025,15 +2039,9 @@ public class XposedInit implements IXposedHookLoadPackage {
                         row.setTag(TAG_KEY_ROW_BG, bgView);
                     }
 
-                    // 1. Version 3: Floating Heads-Up Notification (HUN)
-                    // Pinned floating heads-up alert outside the shade
-                    boolean isHun = !isShelf && isRowHun(row);
-
                     // 2. Version 1 vs Version 2 Detection:
                     // Determine if row is on Lockscreen / Keyguard
                     // sStatusBarState: 1 = KEYGUARD (pure lockscreen), 2 = SHADE_LOCKED (notification shade), 0 = SHADE (notification shade)
-                    // Notifications on lockscreen are blurred. Notifications in the notification shade (0 or 2) are stock system background (no blur).
-                    int curState = getCurrentStatusBarState();
                     boolean onKeyguard = (curState == 1 && sStatusBarState == 1);
                     if (!onKeyguard && row != null && sIsOnKeyguardMethod != null) {
                         try {
@@ -2066,6 +2074,8 @@ public class XposedInit implements IXposedHookLoadPackage {
                             row.setTag(TAG_KEY_IS_COLORIZED, isColorized ? Boolean.TRUE : Boolean.FALSE);
                         }
                     }
+                    if (pureShade && !isHun && isColorized) return;
+                    boolean shadeGlass = canDrawShadeGlass && !isColorized && solidWeight > 0.01f;
 
                     // 3. Screen awake / Sleep / AOD / Bouncer check & dynamic alpha / dismissal tracking:
                     float stackAlpha = 1.0f;
@@ -2201,7 +2211,12 @@ public class XposedInit implements IXposedHookLoadPackage {
                         try { clipBottom = sClipBottomAmountField.getInt(bgView); } catch (Throwable ignored) {}
                     }
 
-                    boolean alignedRight = false;
+                    if (shadeGlass) {
+                        if (sTopOverlapField != null) clipTop = Math.max(clipTop, sTopOverlapField.getInt(bgView));
+                        if (sBottomOverlapField != null) clipBottom = Math.max(clipBottom, sBottomOverlapField.getInt(bgView));
+                    }
+
+                    boolean alignedRight = shadeGlass && bgView.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
                     if (isShelf) {
                         try {
                             alignedRight = (Boolean) XposedHelpers.callMethod(bgView, "isAlignedToRight");
@@ -2268,12 +2283,14 @@ public class XposedInit implements IXposedHookLoadPackage {
                         }
                     }
 
-                    float maxRadius = (drawBottom - drawTop) / 2.0f;
+                    int shapeTop = shadeGlass ? bgTop : drawTop;
+                    int shapeBottom = shadeGlass ? actualHeight : drawBottom;
+                    float maxRadius = Math.min(drawRight - drawLeft, shapeBottom - shapeTop) / 2.0f;
                     if (topRadius > maxRadius) topRadius = maxRadius;
                     if (bottomRadius > maxRadius) bottomRadius = maxRadius;
 
                     // Reusable fast draw path (zero GC allocations)
-                    sDrawRectF.set(drawLeft, drawTop, drawRight, drawBottom);
+                    sDrawRectF.set(drawLeft, shapeTop, drawRight, shapeBottom);
                     sCornerRadii[0] = topRadius;
                     sCornerRadii[1] = topRadius;
                     sCornerRadii[2] = topRadius;
@@ -2286,35 +2303,37 @@ public class XposedInit implements IXposedHookLoadPackage {
                     sClipPath.reset();
                     sClipPath.addRoundRect(sDrawRectF, sCornerRadii, Path.Direction.CW);
 
-                    canvas.save();
-                    canvas.clipPath(sClipPath);
+                    int saveCount = canvas.save();
+                    try {
+                        if (shadeGlass) canvas.clipRect(drawLeft, drawTop, drawRight, drawBottom);
+                        canvas.clipPath(sClipPath);
 
                     // =========================================================
                     // 3-VERSION NOTIFICATION RENDERER DISPATCHER
                     // =========================================================
-                    if (isHun) {
-                        // Version 3: Floating Heads-Up Notification Card (Zero-lag motion & frosted glass)
-                        renderHeadsUpCard(canvas, bgView, row, drawLeft, drawTop, drawRight, drawBottom,
-                                topRadius, bottomRadius, sClipPath, isDark, densityF, combinedAlpha);
-                    } else {
-                        // Version 2: Notification Shade System Card (100% Stock System Background, Zero Blur)
-                        if (solidWeight > 0.01f) {
-                            renderShadeSystemCard(canvas, bgView, ctx, isShelf, drawLeft, drawTop, drawRight, drawBottom,
-                                    sClipPath, isDark, combinedAlpha, solidWeight);
-                        }
-
-                        // Version 1: Lockscreen Frosted Glass Card (Wallpaper Blur + Predictive Back fading)
-                        if (blurWeight > 0.01f) {
-                            renderLockscreenCard(canvas, bgView, row, isShelf, drawLeft, drawTop, drawRight, drawBottom,
-                                    topRadius, bottomRadius, sClipPath, isDark, densityF, combinedAlpha, blurWeight);
+                        if (isHun) {
+                            renderHeadsUpCard(canvas, bgView, row, drawLeft, drawTop, drawRight, drawBottom,
+                                    topRadius, bottomRadius, sClipPath, isDark, densityF, combinedAlpha);
                         } else {
-                            if (Boolean.TRUE.equals(bgView.getTag(TAG_KEY_BLUR_ACTIVE))) {
+                            if (solidWeight > 0.01f) {
+                                if (shadeGlass) {
+                                    renderShadeGlassCard(canvas, bgView, drawLeft, shapeTop, drawRight, shapeBottom,
+                                            isDark, densityF, combinedAlpha * solidWeight);
+                                } else {
+                                    renderShadeSystemCard(canvas, bgView, ctx, isShelf, drawLeft, drawTop, drawRight, drawBottom,
+                                            sClipPath, isDark, combinedAlpha, solidWeight);
+                                }
+                            }
+                            if (blurWeight > 0.01f) {
+                                renderLockscreenCard(canvas, bgView, row, isShelf, drawLeft, drawTop, drawRight, drawBottom,
+                                        topRadius, bottomRadius, sClipPath, isDark, densityF, combinedAlpha, blurWeight);
+                            } else if (Boolean.TRUE.equals(bgView.getTag(TAG_KEY_BLUR_ACTIVE))) {
                                 cleanupBlur(bgView);
                             }
                         }
+                    } finally {
+                        canvas.restoreToCount(saveCount);
                     }
-
-                    canvas.restore();
 
                     // Cancel original onDraw because we cleanly render the chosen version!
                     param.setResult(null);
@@ -2987,7 +3006,31 @@ public class XposedInit implements IXposedHookLoadPackage {
             canvas.drawPath(clipPath, glassTintPaint);
         }
 
-        // 2. Ripple effect for touch feedback on lockscreen cards
+        drawNotificationRipple(canvas, bgView, drawLeft, drawTop, drawRight, drawBottom);
+    }
+
+    private static void renderShadeGlassCard(Canvas canvas, View bgView, int left, int top, int right,
+            int bottom, boolean isDark, float density, float alpha) {
+        int stockColor = resolveStockNotifColor(bgView);
+        int frostedColor = getFrostedBackdropColor(bgView.getContext(), isDark);
+        int color = Color.rgb(
+                (Color.red(stockColor) * 3 + Color.red(frostedColor)) / 4,
+                (Color.green(stockColor) * 3 + Color.green(frostedColor)) / 4,
+                (Color.blue(stockColor) * 3 + Color.blue(frostedColor)) / 4);
+        solidBgPaint.setColor(color);
+        solidBgPaint.setAlpha(Math.round((isDark ? 140 : 174) * alpha));
+        canvas.drawPath(sClipPath, solidBgPaint);
+
+        glassBorderPaint.setStyle(Paint.Style.STROKE);
+        glassBorderPaint.setStrokeWidth(density * 1.25f);
+        glassBorderPaint.setColor(Color.WHITE);
+        glassBorderPaint.setAlpha(Math.round((isDark ? 50 : 123) * alpha));
+        canvas.drawPath(sClipPath, glassBorderPaint);
+        drawNotificationRipple(canvas, bgView, left, top, right, bottom);
+    }
+
+    private static void drawNotificationRipple(Canvas canvas, View bgView, int drawLeft, int drawTop,
+            int drawRight, int drawBottom) {
         Drawable ripple = (Drawable) bgView.getTag(TAG_KEY_RIPPLE);
         if (ripple == null) {
             try {
