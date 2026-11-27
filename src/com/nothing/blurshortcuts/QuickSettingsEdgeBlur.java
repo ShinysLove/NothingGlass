@@ -20,6 +20,7 @@ final class QuickSettingsEdgeBlur {
     private static final String SHADE = "com.android.systemui.shade.ui.composable.";
     private static final String SCENE = "com.android.compose.animation.scene.";
     private static final String MECHANICS = "com.android.mechanics.behavior.";
+    private static final float BAND_DP = 96f;
     private static WeakReference<Object> shadeSpec = new WeakReference<>(null);
     private static WeakReference<Object> shadeLayout = new WeakReference<>(null);
 
@@ -27,6 +28,7 @@ final class QuickSettingsEdgeBlur {
             uniform shader panel;
             uniform float2 viewport;
             uniform float band;
+            uniform float density;
             uniform float strength;
 
             half4 samplePanel(float2 p) {
@@ -40,13 +42,13 @@ final class QuickSettingsEdgeBlur {
                 if (distance >= band) return original;
 
                 float edge = 1.0 - smoothstep(0.0, band, distance);
-                float stepSize = (band * 0.042) * edge * strength;
+                float stepSize = (1.34 * density) * edge * strength;
                 float2 step = float2(0.0, stepSize);
                 half4 softened = original * 0.28125;
                 softened += (samplePanel(p + step) + samplePanel(p - step)) * 0.21875;
                 softened += (samplePanel(p + step * 2.0) + samplePanel(p - step * 2.0)) * 0.109375;
                 softened += (samplePanel(p + step * 3.0) + samplePanel(p - step * 3.0)) * 0.03125;
-                float opacity = 1.0 - strength * (1.0 - smoothstep(0.0, band * 0.28, distance));
+                float opacity = 1.0 - strength * (1.0 - smoothstep(0.0, min(band, 9.0 * density), distance));
                 return softened * half(opacity);
             }
             """;
@@ -157,21 +159,24 @@ final class QuickSettingsEdgeBlur {
                         effect = new EdgeEffect();
                         layerEffects.put(layer, effect);
                     }
-                    float band = Math.min(height, 32f * (Float) getDensity.invoke(drawing));
+                    float density = (Float) getDensity.invoke(drawing);
+                    float band = Math.min(height, BAND_DP * density);
                     int alphaStep = Math.max(1, Math.round(strength * 16f));
-                    if (effect.enabled && effect.size == size && effect.band == band && effect.alphaStep == alphaStep) return;
+                    if (effect.enabled && effect.size == size && effect.density == density
+                            && effect.alphaStep == alphaStep) return;
                     effect.shader.setFloatUniform("viewport", width, height);
                     effect.shader.setFloatUniform("band", band);
+                    effect.shader.setFloatUniform("density", density);
                     effect.shader.setFloatUniform("strength", alphaStep / 16f);
                     Object renderEffect = wrapEffect.newInstance(RenderEffect.createRuntimeShaderEffect(effect.shader, "panel"));
                     setEffect.invoke(layer, renderEffect);
                     effect.enabled = true;
                     effect.size = size;
-                    effect.band = band;
+                    effect.density = density;
                     effect.alphaStep = alphaStep;
                     if (!logged) {
                         logged = true;
-                        Log.i(TAG, "Quick Settings edge blur rendered at panel height " + (int) height);
+                        Log.i(TAG, "Quick Settings edge blur rendered with " + (int) BAND_DP + "dp band");
                     }
                 } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
                     failed = true;
@@ -193,7 +198,7 @@ final class QuickSettingsEdgeBlur {
         final RuntimeShader shader = new RuntimeShader(SHADER);
         boolean enabled;
         long size;
-        float band;
+        float density;
         int alphaStep;
     }
 }
