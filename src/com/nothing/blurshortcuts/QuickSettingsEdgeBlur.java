@@ -4,9 +4,12 @@ import android.graphics.RenderEffect;
 import android.graphics.RuntimeShader;
 import android.util.Log;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -17,8 +20,8 @@ final class QuickSettingsEdgeBlur {
     private static final String SHADE = "com.android.systemui.shade.ui.composable.";
     private static final String SCENE = "com.android.compose.animation.scene.";
     private static final String MECHANICS = "com.android.mechanics.behavior.";
-    private static final String SPEC_STATE = "nothing.blurpanels.qsEdgeState";
-    private static final String LAYER_EFFECT = "nothing.blurpanels.qsEdgeEffect";
+    private static WeakReference<Object> shadeSpec = new WeakReference<>(null);
+    private static WeakReference<Object> shadeLayout = new WeakReference<>(null);
 
     private static final String SHADER = """
             uniform shader panel;
@@ -85,6 +88,7 @@ final class QuickSettingsEdgeBlur {
         Method setEffect = nodeLayer.getType().getMethod("setRenderEffect", composeEffect);
         Method drawEdge = edgeNode.getDeclaredMethod("draw", drawScope);
         ThreadLocal<Object> layoutState = new ThreadLocal<>();
+        Map<Object, EdgeEffect> layerEffects = new WeakHashMap<>();
 
         XposedBridge.deoptimizeMethod(renderOverlay);
         XposedBridge.hookMethod(renderOverlay, new XC_MethodHook() {
@@ -110,8 +114,9 @@ final class QuickSettingsEdgeBlur {
             protected void afterHookedMethod(MethodHookParam param) {
                 Object spec = param.getResult();
                 Object state = layoutState.get();
-                if (spec != null && state != null) {
-                    XposedHelpers.setAdditionalInstanceField(spec, SPEC_STATE, state);
+                if (spec != null && state != null && (shadeSpec.get() != spec || shadeLayout.get() != state)) {
+                    shadeSpec = new WeakReference<>(spec);
+                    shadeLayout = new WeakReference<>(state);
                 }
             }
         });
@@ -126,8 +131,8 @@ final class QuickSettingsEdgeBlur {
                     Object layer = nodeLayer.get(param.thisObject);
                     if (layer == null) return;
                     Object spec = nodeSpec.get(param.thisObject);
-                    Object state = XposedHelpers.getAdditionalInstanceField(spec, SPEC_STATE);
-                    EdgeEffect effect = (EdgeEffect) XposedHelpers.getAdditionalInstanceField(layer, LAYER_EFFECT);
+                    Object state = shadeSpec.get() == spec ? shadeLayout.get() : null;
+                    EdgeEffect effect = layerEffects.get(layer);
                     float strength = 0f;
                     if (state != null) {
                         Object current = getTransition.invoke(state);
@@ -152,7 +157,7 @@ final class QuickSettingsEdgeBlur {
                     if (width < 1f || height < 1f || !Float.isFinite(width) || !Float.isFinite(height)) return;
                     if (effect == null) {
                         effect = new EdgeEffect();
-                        XposedHelpers.setAdditionalInstanceField(layer, LAYER_EFFECT, effect);
+                        layerEffects.put(layer, effect);
                     }
                     float band = Math.min(height, 56f * (Float) getDensity.invoke(drawing));
                     int alphaStep = Math.max(1, Math.round(strength * 16f));
