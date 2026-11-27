@@ -45,18 +45,22 @@ final class PanelGlassHooks {
             hookPanelTint(colors.getDeclaredMethod("notificationScrim", Context.class, boolean.class), false);
             Class<?> overlayColors = loader.loadClass("com.android.systemui.shade.ui.composable.OverlayShade$Colors");
             Class<?> composer = loader.loadClass("androidx.compose.runtime.Composer");
-            Method backdrop = overlayColors.getDeclaredMethod("panelBackgroundOpaque-XeAY9LY",
-                    boolean.class, composer, int.class);
-            XposedBridge.hookMethod(backdrop, new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    if (!(param.getResult() instanceof Long) || !Boolean.TRUE.equals(param.args[0])
-                            || !isSystemBlurEnabled(shadeContext)) return;
-                    long packed = (Long) param.getResult();
-                    if ((packed & 0xffffffffL) != 0L) return;
-                    param.setResult((packed & 0x00ffffffffffffffL) | (56L << 56));
+            Class<?> overlay = loader.loadClass("com.android.systemui.shade.ui.composable.OverlayShadeKt");
+            for (Method method : overlay.getDeclaredMethods()) {
+                if (method.getName().equals("OverlayShadeBackdrop") || method.getName().equals("Panel")) {
+                    XposedBridge.deoptimizeMethod(method);
                 }
-            });
+            }
+            Class<?> scrim = loader.loadClass("com.android.systemui.shade.ui.composable.OverlayScrimKt");
+            for (Method method : scrim.getDeclaredMethods()) {
+                if (method.getName().equals("OverlayScrim")) XposedBridge.deoptimizeMethod(method);
+            }
+            hookComposeBackground(overlayColors.getDeclaredMethod("getScrimBackground",
+                    composer, int.class), 28, 36);
+            hookComposeBackground(overlayColors.getDeclaredMethod("panelBackground-XeAY9LY",
+                    boolean.class, composer, int.class), 94, 105);
+            hookComposeBackground(overlayColors.getDeclaredMethod("panelBackgroundOpaque-XeAY9LY",
+                    boolean.class, composer, int.class), 38, 44);
             Log.i(TAG, "Notification and Quick Settings panel tint hooks installed");
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             Log.w(TAG, "Panel tint hooks unavailable", exception);
@@ -79,13 +83,6 @@ final class PanelGlassHooks {
 
     private static void enableNativeShadeBlur(ClassLoader loader) throws ReflectiveOperationException {
         Class<?> flags = loader.loadClass("com.android.systemui.Flags");
-        Class<?> notifications = loader.loadClass(
-                "com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel");
-        Field blurInteractor = notifications.getDeclaredField("windowRootViewBlurInteractor");
-        blurInteractor.setAccessible(true);
-        Method blurState = blurInteractor.getType().getMethod("isBlurCurrentlySupported");
-        Method stateValue = blurState.getReturnType().getMethod("getValue");
-
         // SystemUI still checks hardware support, blur availability and lockscreen transitions.
         XposedBridge.hookMethod(flags.getDeclaredMethod("notificationShadeBlur"), new XC_MethodHook() {
             @Override
@@ -93,14 +90,40 @@ final class PanelGlassHooks {
                 param.setResult(true);
             }
         });
-        XposedBridge.hookMethod(notifications.getDeclaredMethod("isTransparencyEnabled"), new XC_MethodHook() {
+        hookTransparency(loader.loadClass(
+                "com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel"), true);
+        hookTransparency(loader.loadClass(
+                "com.android.systemui.qs.ui.viewmodel.QuickSettingsShadeOverlayContentViewModel"), false);
+    }
+
+    private static void hookTransparency(Class<?> viewModel, boolean notifications) throws ReflectiveOperationException {
+        Field blurInteractor = viewModel.getDeclaredField("windowRootViewBlurInteractor");
+        blurInteractor.setAccessible(true);
+        Method blurState = blurInteractor.getType().getMethod("isBlurCurrentlySupported");
+        Method stateValue = blurState.getReturnType().getMethod("getValue");
+        XposedBridge.hookMethod(viewModel.getDeclaredMethod("isTransparencyEnabled"), new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws ReflectiveOperationException {
                 if (!(param.getResult() instanceof Boolean)) return;
                 Object interactor = blurInteractor.get(param.thisObject);
                 Object state = blurState.invoke(interactor);
-                notificationTransparencyEnabled = Boolean.TRUE.equals(stateValue.invoke(state));
-                if (notificationTransparencyEnabled) param.setResult(true);
+                boolean supported = Boolean.TRUE.equals(stateValue.invoke(state));
+                if (notifications) notificationTransparencyEnabled = supported;
+                if (supported) param.setResult(true);
+            }
+        });
+    }
+
+    private static void hookComposeBackground(Method method, int darkAlpha, int lightAlpha) {
+        XposedBridge.hookMethod(method, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (!(param.getResult() instanceof Long) || !isSystemBlurEnabled(shadeContext)) return;
+                long packed = (Long) param.getResult();
+                if ((packed & 0xffffffffL) != 0L) return;
+                boolean dark = isDark(shadeContext);
+                long alpha = Math.min(packed >>> 56, dark ? darkAlpha : lightAlpha);
+                param.setResult((packed & 0x00ffffffffffffffL) | (alpha << 56));
             }
         });
     }
@@ -116,12 +139,16 @@ final class PanelGlassHooks {
                 if (!transparency || !isSystemBlurEnabled(context)) return;
 
                 int color = (Integer) param.getResult();
-                boolean dark = (context.getResources().getConfiguration().uiMode
-                        & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+                boolean dark = isDark(context);
                 int maxAlpha = shadePanel ? (dark ? 110 : 128) : (dark ? 106 : 137);
                 param.setResult((color & 0x00ffffff) | (Math.min(Color.alpha(color), maxAlpha) << 24));
             }
         });
+    }
+
+    private static boolean isDark(Context context) {
+        return (context.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
     }
 
     static boolean isNotificationBackdropEnabled(Context context) {

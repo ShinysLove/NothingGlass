@@ -40,16 +40,14 @@ final class QuickSettingsEdgeBlur {
                 if (distance >= band) return original;
 
                 float edge = 1.0 - smoothstep(0.0, band, distance);
-                float radius = (band * 0.30) * edge * strength;
-                float2 x = float2(radius, 0.0);
-                float2 y = float2(0.0, radius);
-                half4 softened = original * 0.20;
-                softened += (samplePanel(p + x) + samplePanel(p - x)
-                            + samplePanel(p + y) + samplePanel(p - y)) * 0.12;
-                softened += (samplePanel(p + x + y) + samplePanel(p + x - y)
-                            + samplePanel(p - x + y) + samplePanel(p - x - y)) * 0.08;
-                float opacity = 1.0 - strength * (1.0 - smoothstep(0.0, band * 0.62, distance));
-                return mix(original, softened, half(edge * strength)) * half(opacity);
+                float stepSize = (band * 0.042) * edge * strength;
+                float2 step = float2(0.0, stepSize);
+                half4 softened = original * 0.28125;
+                softened += (samplePanel(p + step) + samplePanel(p - step)) * 0.21875;
+                softened += (samplePanel(p + step * 2.0) + samplePanel(p - step * 2.0)) * 0.109375;
+                softened += (samplePanel(p + step * 3.0) + samplePanel(p - step * 3.0)) * 0.03125;
+                float opacity = 1.0 - strength * (1.0 - smoothstep(0.0, band * 0.28, distance));
+                return softened * half(opacity);
             }
             """;
 
@@ -159,7 +157,7 @@ final class QuickSettingsEdgeBlur {
                         effect = new EdgeEffect();
                         layerEffects.put(layer, effect);
                     }
-                    float band = Math.min(height, 56f * (Float) getDensity.invoke(drawing));
+                    float band = Math.min(height, 32f * (Float) getDensity.invoke(drawing));
                     int alphaStep = Math.max(1, Math.round(strength * 16f));
                     if (effect.enabled && effect.size == size && effect.band == band && effect.alphaStep == alphaStep) return;
                     effect.shader.setFloatUniform("viewport", width, height);
