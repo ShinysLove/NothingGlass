@@ -33,6 +33,12 @@ final class PanelGlassHooks {
         dualShadeAvailable = true;
 
         try {
+            ShadeDepthHooks.install(loader);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            Log.w(TAG, "Shade depth hooks unavailable", exception);
+        }
+
+        try {
             enableNativeShadeBlur(loader);
             Class<?> colors = loader.loadClass("com.android.systemui.shade.ui.ShadeColors");
             hookPanelTint(colors.getDeclaredMethod("shadePanel", Context.class, boolean.class, boolean.class), true);
@@ -61,6 +67,13 @@ final class PanelGlassHooks {
             Log.i(TAG, "Quick Settings Compose tile hooks installed");
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             Log.w(TAG, "Compose tile hooks unavailable", exception);
+        }
+
+        PanelControlGlass.install(loader);
+        try {
+            QuickSettingsEdgeBlur.install(loader);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            Log.w(TAG, "Quick Settings edge blur unavailable", exception);
         }
     }
 
@@ -115,7 +128,11 @@ final class PanelGlassHooks {
         return notificationTransparencyEnabled && isSystemBlurEnabled(context);
     }
 
-    private static boolean isSystemBlurEnabled(Context context) {
+    static Context getShadeContext() {
+        return shadeContext;
+    }
+
+    static boolean isSystemBlurEnabled(Context context) {
         if (!dualShadeAvailable || context == null) return false;
         WindowManager windows = context.getSystemService(WindowManager.class);
         return windows != null && windows.isCrossWindowBlurEnabled();

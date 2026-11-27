@@ -33,7 +33,7 @@ fi
 "$AAPT2_CMD" link -I "$ANDROID_JAR" --manifest AndroidManifest.xml bin/compiled_res/*.flat -o bin/app-base.apk
 
 echo "[2/5] Compiling Java sources..."
-"$JAVAC_BIN" --release 11 -cp "$ANDROID_JAR" -d bin/classes $(find src -name "*.java")
+"$JAVAC_BIN" --release 17 -cp "$ANDROID_JAR" -d bin/classes $(find src -name "*.java")
 
 echo "[3/5] Desugaring & compiling to DEX (D8)..."
 "$JAVA_BIN" -cp "$R8_JAR" com.android.tools.r8.D8 \

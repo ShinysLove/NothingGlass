@@ -31,7 +31,7 @@ Invoke-AndroidTool "$tools/aapt2.exe" @('link', '-I', $androidJar, '--manifest',
     '-A', "$PSScriptRoot/assets", '-o', $base, $compiledResources)
 
 $sources = @(Get-ChildItem -LiteralPath "$PSScriptRoot/src" -Recurse -Filter '*.java' | ForEach-Object FullName)
-Invoke-AndroidTool 'javac' (@('--release', '11', '-cp', $androidJar, '-d', $classes) + $sources)
+Invoke-AndroidTool 'javac' (@('--release', '17', '-cp', $androidJar, '-d', $classes) + $sources)
 $moduleClasses = @(Get-ChildItem -LiteralPath "$classes/com" -Recurse -Filter '*.class' | ForEach-Object FullName)
 Invoke-AndroidTool 'java' (@('-cp', "$tools/lib/d8.jar", 'com.android.tools.r8.D8',
     '--min-api', '36', '--lib', $androidJar, '--classpath', $classes, '--output', $dex) + $moduleClasses)
