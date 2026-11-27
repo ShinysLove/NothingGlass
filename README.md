@@ -11,7 +11,7 @@ Android 17. Дополняет исходный модуль поддержко�
 При раскрытии и сворачивании панели быстрых настроек плитки плавно размываются у её
 движущегося нижнего края.
 
-1. Установите `NothingBlurPanels-0.1.6.apk` как приложение.
+1. Установите `NothingBlurPanels-0.1.7.apk` как приложение.
 2. В LSPosed/Vector включите **Nothing Blur Panels** и отметьте **System UI**
    (`com.android.systemui`). Для SukiSU нужна рабочая связка Zygisk и LSPosed/Vector.
 3. Если включён оригинальный **NothingBlurShortcuts** или другой модуль, который меняет

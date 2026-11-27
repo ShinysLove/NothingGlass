@@ -39,6 +39,11 @@ final class PanelControlGlass {
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             Log.w(TAG, "VPN and security chip glass unavailable", exception);
         }
+        try {
+            hookEditButton(loader);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            Log.w(TAG, "Quick Settings edit button glass unavailable", exception);
+        }
     }
 
     private static void hookNotificationFooter(ClassLoader loader) throws ReflectiveOperationException {
@@ -147,37 +152,34 @@ final class PanelControlGlass {
         Class<?> model = loader.loadClass("com.android.systemui.qs.footer.ui.viewmodel.FooterActionsSecurityButtonViewModel");
         Class<?> modifier = loader.loadClass("androidx.compose.ui.Modifier");
         Class<?> composer = loader.loadClass("androidx.compose.runtime.Composer");
-        Class<?> function1 = loader.loadClass("kotlin.jvm.functions.Function1");
         Class<?> shape = loader.loadClass("androidx.compose.ui.graphics.Shape");
         Class<?> border = loader.loadClass("androidx.compose.foundation.BorderStroke");
         Class<?> expandable = loader.loadClass("com.android.systemui.animation.Expandable");
-        Class<?> factory = loader.loadClass("com.android.systemui.animation.ComposableControllerFactory");
         Class<?> backgroundKt = loader.loadClass("androidx.compose.foundation.BackgroundKt");
         Class<?> borderKt = loader.loadClass("androidx.compose.foundation.BorderKt");
         Class<?> borderFactory = loader.loadClass("androidx.compose.foundation.BorderStrokeKt");
-        Class<?> controllerKt = loader.loadClass("com.android.compose.animation.ExpandableControllerKt");
         Method fullPill = security.getDeclaredMethod("SecurityInfo$lambda$10$lambda$9",
                 boolean.class, model, expandable, composer, int.class);
-        Method compactPill = security.getDeclaredMethod("SecurityInfo$lambda$10",
-                modifier, function1, boolean.class, model, composer, int.class);
         Method background = backgroundKt.getDeclaredMethod("background-bw27NRU", modifier, long.class, shape);
         Method withBorder = borderKt.getDeclaredMethod("border", modifier, border, shape);
-        Method rememberController = controllerKt.getDeclaredMethod("rememberExpandableController-ARWlkTg",
-                long.class, shape, long.class, border, factory, composer, int.class, int.class);
         Method makeBorder = borderFactory.getDeclaredMethod("BorderStroke-cXLIe8U", float.class, long.class);
         Object darkBorder = makeBorder.invoke(null, 0.75f, packColor(DARK_BORDER));
         Object lightBorder = makeBorder.invoke(null, 0.75f, packColor(LIGHT_BORDER));
-        ThreadLocal<SecurityChip> activeChip = new ThreadLocal<>();
+        ThreadLocal<Boolean> activeChip = new ThreadLocal<>();
+        Method marquee = loader.loadClass("androidx.compose.foundation.BasicMarqueeKt")
+                .getDeclaredMethod("basicMarquee-1Mj1MLw$default", modifier, int.class, int.class,
+                        int.class, int.class, loader.loadClass("androidx.compose.foundation.MarqueeSpacing"),
+                        float.class, int.class, Object.class);
+        VpnTextFade fade = new VpnTextFade(loader, modifier);
 
         XposedBridge.deoptimizeMethod(fullPill);
-        XposedBridge.deoptimizeMethod(compactPill);
         XposedBridge.hookMethod(background, new XC_MethodHook() {
             private boolean logged;
 
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 Context context = PanelGlassHooks.getShadeContext();
-                if (activeChip.get() == SecurityChip.FULL && PanelGlassHooks.isSystemBlurEnabled(context)) {
+                if (Boolean.TRUE.equals(activeChip.get()) && PanelGlassHooks.isSystemBlurEnabled(context)) {
                     boolean dark = isDark(context);
                     param.setObjectExtra("securityChipBorder", dark ? darkBorder : lightBorder);
                     param.args[1] = packColor(dark ? DARK_FILL : LIGHT_FILL);
@@ -196,48 +198,67 @@ final class PanelControlGlass {
                 }
             }
         });
-        XposedBridge.hookMethod(rememberController, new XC_MethodHook() {
+        XposedBridge.hookMethod(marquee, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws ReflectiveOperationException {
+                if (Boolean.TRUE.equals(activeChip.get())) param.args[0] = fade.addTo(param.args[0]);
+            }
+        });
+        XposedBridge.hookMethod(fullPill, scoped(activeChip, 0));
+    }
+
+    private static void hookEditButton(ClassLoader loader) throws ReflectiveOperationException {
+        Class<?> toolbar = loader.loadClass("com.android.systemui.qs.panels.ui.compose.toolbar.EditModeButtonKt");
+        Class<?> model = loader.loadClass("com.android.systemui.qs.panels.ui.viewmodel.toolbar.EditModeButtonViewModel");
+        Class<?> border = loader.loadClass("androidx.compose.foundation.BorderStroke");
+        Class<?> shape = loader.loadClass("androidx.compose.ui.graphics.Shape");
+        Class<?> composer = loader.loadClass("androidx.compose.runtime.Composer");
+        Class<?> modifier = loader.loadClass("androidx.compose.ui.Modifier");
+        Class<?> surfaceKt = loader.loadClass("androidx.compose.material3.SurfaceKt");
+        Method pencil = toolbar.getDeclaredMethod("EditModeButton$lambda$20$lambda$19",
+                model, border, shape, composer, int.class);
+        Method surface = surfaceKt.getDeclaredMethod("Surface-o_FOJdg",
+                loader.loadClass("kotlin.jvm.functions.Function0"), modifier, boolean.class, shape,
+                long.class, long.class, float.class, float.class, border,
+                loader.loadClass("androidx.compose.foundation.interaction.MutableInteractionSource"),
+                loader.loadClass("kotlin.jvm.functions.Function2"), composer, int.class, int.class, int.class);
+        ThreadLocal<Boolean> activePencil = new ThreadLocal<>();
+        XposedBridge.deoptimizeMethod(pencil);
+        XposedBridge.hookMethod(pencil, scoped(activePencil, -1));
+        XposedBridge.hookMethod(surface, new XC_MethodHook() {
             private boolean logged;
 
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
+                if (!Boolean.TRUE.equals(activePencil.get()) || param.args[8] == null) return;
                 Context context = PanelGlassHooks.getShadeContext();
-                if (activeChip.get() != SecurityChip.COMPACT || !PanelGlassHooks.isSystemBlurEnabled(context)) return;
-                boolean dark = isDark(context);
-                param.args[0] = packColor(dark ? DARK_FILL : LIGHT_FILL);
-                param.args[3] = dark ? darkBorder : lightBorder;
-                param.args[6] = (Integer) param.args[6] & ~(0xe | (0xe << 9));
-                param.args[7] = (Integer) param.args[7] & ~(1 << 3);
+                if (!PanelGlassHooks.isSystemBlurEnabled(context)) return;
+                param.args[4] = packColor(isDark(context) ? DARK_FILL : LIGHT_FILL);
+                param.args[12] = (Integer) param.args[12] & ~(0xe << 12);
                 if (!logged) {
                     logged = true;
-                    Log.i(TAG, "Quick Settings compact security chip glass applied");
+                    Log.i(TAG, "Quick Settings pencil glass applied");
                 }
             }
         });
-        XposedBridge.hookMethod(fullPill, securityChipScope(activeChip, 0, false, SecurityChip.FULL));
-        XposedBridge.hookMethod(compactPill, securityChipScope(activeChip, 2, true, SecurityChip.COMPACT));
     }
 
-    private static XC_MethodHook securityChipScope(ThreadLocal<SecurityChip> activeChip,
-            int collapsedArg, boolean collapsed, SecurityChip chip) {
+    private static XC_MethodHook scoped(ThreadLocal<Boolean> active, int collapsedArg) {
         return new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                param.setObjectExtra("previousSecurityChip", activeChip.get());
-                if (Boolean.valueOf(collapsed).equals(param.args[collapsedArg])) activeChip.set(chip);
-                else activeChip.remove();
+                param.setObjectExtra("previousControlScope", active.get());
+                if (collapsedArg < 0 || Boolean.FALSE.equals(param.args[collapsedArg])) active.set(true);
+                else active.remove();
             }
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                SecurityChip previous = (SecurityChip) param.getObjectExtra("previousSecurityChip");
-                if (previous == null) activeChip.remove();
-                else activeChip.set(previous);
+                if (Boolean.TRUE.equals(param.getObjectExtra("previousControlScope"))) active.set(true);
+                else active.remove();
             }
         };
     }
-
-    private enum SecurityChip { FULL, COMPACT }
 
     private static boolean isDark(Context context) {
         return (context.getResources().getConfiguration().uiMode
