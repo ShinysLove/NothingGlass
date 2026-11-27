@@ -7,30 +7,32 @@ import android.util.Log;
 import android.view.WindowManager;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 
-/** Styles the two shade surfaces while SystemUI owns their background blur and transitions. */
+/** Styles both shade layouts while SystemUI owns their background blur and transitions. */
 final class PanelGlassHooks {
     private static final String TAG = "NothingBlurPanels";
     private static final ThreadLocal<Object> tileBorder = new ThreadLocal<>();
     private static volatile Context shadeContext;
     private static volatile boolean notificationTransparencyEnabled;
-    private static boolean dualShadeAvailable;
+    private static boolean shadeAvailable;
 
     private PanelGlassHooks() {}
 
     static void install(ClassLoader loader) {
         try {
-            loader.loadClass("com.android.systemui.notifications.ui.composable.NotificationsShadeOverlay");
-            loader.loadClass("com.android.systemui.qs.ui.composable.QuickSettingsShadeOverlay");
+            loader.loadClass("com.android.systemui.shade.ui.ShadeColors");
         } catch (ClassNotFoundException exception) {
-            Log.i(TAG, "Dual shade classes unavailable");
+            Log.i(TAG, "Nothing OS shade colors unavailable");
             return;
         }
-        dualShadeAvailable = true;
+        shadeAvailable = true;
 
         try {
             ShadeDepthHooks.install(loader);
@@ -41,8 +43,23 @@ final class PanelGlassHooks {
         try {
             enableNativeShadeBlur(loader);
             Class<?> colors = loader.loadClass("com.android.systemui.shade.ui.ShadeColors");
-            hookPanelTint(colors.getDeclaredMethod("shadePanel", Context.class, boolean.class, boolean.class), true);
-            hookPanelTint(colors.getDeclaredMethod("notificationScrim", Context.class, boolean.class), false);
+            hookPanelTint(colors.getDeclaredMethod("shadePanel", Context.class, boolean.class, boolean.class), 110, 128);
+            hookPanelTint(colors.getDeclaredMethod("notificationScrim", Context.class, boolean.class), 106, 137);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            Log.w(TAG, "Shared shade tint hooks unavailable", exception);
+        }
+
+        try {
+            installUnifiedShadeHooks(loader);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            Log.w(TAG, "Unified shade hooks unavailable", exception);
+        }
+
+        try {
+            hookTransparency(loader.loadClass(
+                    "com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel"), true);
+            hookTransparency(loader.loadClass(
+                    "com.android.systemui.qs.ui.viewmodel.QuickSettingsShadeOverlayContentViewModel"), false);
             Class<?> overlayColors = loader.loadClass("com.android.systemui.shade.ui.composable.OverlayShade$Colors");
             Class<?> composer = loader.loadClass("androidx.compose.runtime.Composer");
             Class<?> overlay = loader.loadClass("com.android.systemui.shade.ui.composable.OverlayShadeKt");
@@ -61,9 +78,9 @@ final class PanelGlassHooks {
                     boolean.class, composer, int.class), 94, 105);
             hookComposeBackground(overlayColors.getDeclaredMethod("panelBackgroundOpaque-XeAY9LY",
                     boolean.class, composer, int.class), 38, 44);
-            Log.i(TAG, "Notification and Quick Settings panel tint hooks installed");
+            Log.i(TAG, "Separate shade panel tint hooks installed");
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
-            Log.w(TAG, "Panel tint hooks unavailable", exception);
+            Log.w(TAG, "Separate shade panel tint hooks unavailable", exception);
         }
 
         try {
@@ -90,10 +107,77 @@ final class PanelGlassHooks {
                 param.setResult(true);
             }
         });
-        hookTransparency(loader.loadClass(
-                "com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel"), true);
-        hookTransparency(loader.loadClass(
-                "com.android.systemui.qs.ui.viewmodel.QuickSettingsShadeOverlayContentViewModel"), false);
+    }
+
+    private static void installUnifiedShadeHooks(ClassLoader loader) throws ReflectiveOperationException {
+        Class<?> colors = loader.loadClass("com.android.systemui.shade.ui.ShadeColors");
+        hookPanelTint(colors.getDeclaredMethod("classicShadeNotificationScrimBg",
+                Context.class, boolean.class, boolean.class), 83, 108);
+
+        Class<?> blurInteractor = loader.loadClass(
+                "com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor");
+        hookSceneTransparency(loader.loadClass("com.android.systemui.shade.ui.viewmodel.ShadeSceneContentViewModel"),
+                blurInteractor);
+        hookSceneTransparency(loader.loadClass("com.android.systemui.qs.ui.viewmodel.QuickSettingsSceneContentViewModel"),
+                blurInteractor);
+
+        // These Compose renderers can otherwise retain inlined copies of the stock colors and getter.
+        deoptimize(loader.loadClass("com.android.systemui.shade.ui.composable.ShadeSceneKt"),
+                "ShadeScene", "SingleShade", "SplitShade");
+        deoptimize(loader.loadClass("com.android.systemui.qs.ui.composable.QuickSettingsSceneKt"), "QuickSettingsScene");
+        deoptimize(loader.loadClass("com.android.systemui.shade.ui.composable.ShadePanelScrimKt"),
+                "ShadePanelScrim", "scrimColor");
+        Log.i(TAG, "Unified shade translucency hooks installed");
+    }
+
+    private static void hookSceneTransparency(Class<?> model, Class<?> blurInteractor)
+            throws ReflectiveOperationException {
+        Method blurState = blurInteractor.getMethod("isBlurCurrentlySupported");
+        Method stateValue = blurState.getReturnType().getMethod("getValue");
+        Map<Object, Object> blurSupport = new WeakHashMap<>();
+        for (Constructor<?> constructor : model.getDeclaredConstructors()) {
+            Class<?>[] parameters = constructor.getParameterTypes();
+            for (int index = 0; index < parameters.length; index++) {
+                if (parameters[index] != blurInteractor) continue;
+                int interactorArg = index;
+                XposedBridge.hookMethod(constructor, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws ReflectiveOperationException {
+                        if (param.getThrowable() != null) return;
+                        Object state = blurState.invoke(param.args[interactorArg]);
+                        synchronized (blurSupport) {
+                            blurSupport.put(param.thisObject, state);
+                        }
+                    }
+                });
+                break;
+            }
+        }
+        XposedBridge.hookMethod(model.getDeclaredMethod("isTransparencyEnabled"), new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws ReflectiveOperationException {
+                if (!(param.getResult() instanceof Boolean)) return;
+                Object state;
+                synchronized (blurSupport) {
+                    state = blurSupport.get(param.thisObject);
+                }
+                if (state == null) return;
+                boolean supported = Boolean.TRUE.equals(stateValue.invoke(state));
+                notificationTransparencyEnabled = supported;
+                if (supported) param.setResult(true);
+            }
+        });
+    }
+
+    static void deoptimize(Class<?> type, String... names) {
+        for (Method method : type.getDeclaredMethods()) {
+            for (String name : names) {
+                if (method.getName().equals(name)) {
+                    XposedBridge.deoptimizeMethod(method);
+                    break;
+                }
+            }
+        }
     }
 
     private static void hookTransparency(Class<?> viewModel, boolean notifications) throws ReflectiveOperationException {
@@ -128,7 +212,7 @@ final class PanelGlassHooks {
         });
     }
 
-    private static void hookPanelTint(Method method, boolean shadePanel) {
+    private static void hookPanelTint(Method method, int darkAlpha, int lightAlpha) {
         XposedBridge.hookMethod(method, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
@@ -140,7 +224,7 @@ final class PanelGlassHooks {
 
                 int color = (Integer) param.getResult();
                 boolean dark = isDark(context);
-                int maxAlpha = shadePanel ? (dark ? 110 : 128) : (dark ? 106 : 137);
+                int maxAlpha = dark ? darkAlpha : lightAlpha;
                 param.setResult((color & 0x00ffffff) | (Math.min(Color.alpha(color), maxAlpha) << 24));
             }
         });
@@ -160,7 +244,7 @@ final class PanelGlassHooks {
     }
 
     static boolean isSystemBlurEnabled(Context context) {
-        if (!dualShadeAvailable || context == null) return false;
+        if (!shadeAvailable || context == null) return false;
         WindowManager windows = context.getSystemService(WindowManager.class);
         return windows != null && windows.isCrossWindowBlurEnabled();
     }

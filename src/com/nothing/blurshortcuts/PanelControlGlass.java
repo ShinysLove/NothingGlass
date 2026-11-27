@@ -44,6 +44,40 @@ final class PanelControlGlass {
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             Log.w(TAG, "Quick Settings edit button glass unavailable", exception);
         }
+        try {
+            hookUnifiedFooterActions(loader);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            Log.w(TAG, "Unified shade footer glass unavailable", exception);
+        }
+    }
+
+    private static void hookUnifiedFooterActions(ClassLoader loader) throws ReflectiveOperationException {
+        Class<?> footer = loader.loadClass("com.android.systemui.qs.footer.ui.compose.FooterActionsKt");
+        Class<?> border = loader.loadClass("androidx.compose.foundation.BorderStroke");
+        Method circle = footer.getDeclaredMethod("CircleExpandable-vMW4a_I",
+                long.class, loader.loadClass("androidx.compose.ui.Modifier"), long.class, border,
+                loader.loadClass("kotlin.jvm.functions.Function1"),
+                loader.loadClass("androidx.compose.foundation.interaction.MutableInteractionSource"),
+                boolean.class, loader.loadClass("kotlin.jvm.functions.Function3"),
+                loader.loadClass("androidx.compose.runtime.Composer"), int.class, int.class);
+        Method makeBorder = loader.loadClass("androidx.compose.foundation.BorderStrokeKt")
+                .getDeclaredMethod("BorderStroke-cXLIe8U", float.class, long.class);
+        Object darkBorder = makeBorder.invoke(null, 0.75f, packColor(DARK_BORDER));
+        Object lightBorder = makeBorder.invoke(null, 0.75f, packColor(LIGHT_BORDER));
+
+        PanelGlassHooks.deoptimize(footer, "AnimatedFooterTextButton", "TextButton", "NumberButton");
+        XposedBridge.hookMethod(circle, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                Context context = PanelGlassHooks.getShadeContext();
+                if (!PanelGlassHooks.isSystemBlurEnabled(context)) return;
+                boolean dark = isDark(context);
+                param.args[0] = packColor(dark ? DARK_FILL : LIGHT_FILL);
+                param.args[3] = dark ? darkBorder : lightBorder;
+                param.args[9] = (Integer) param.args[9] & ~(0xe | (0xe << 9));
+                param.args[10] = (Integer) param.args[10] & ~(1 << 3);
+            }
+        });
     }
 
     private static void hookNotificationFooter(ClassLoader loader) throws ReflectiveOperationException {
