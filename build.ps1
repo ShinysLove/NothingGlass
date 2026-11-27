@@ -1,6 +1,6 @@
 param(
     [string]$Sdk = $env:ANDROID_HOME,
-    [string]$OutputApk = (Join-Path $PSScriptRoot 'bin/NothingBlurPanels.apk')
+    [string]$OutputApk = (Join-Path $PSScriptRoot 'bin/NothingGlass.apk')
 )
 
 $ErrorActionPreference = 'Stop'
