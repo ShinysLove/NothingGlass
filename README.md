@@ -1,76 +1,56 @@
 # Nothing Glass
 
-An LSPosed / Vector module that adds dark frosted glass to the notification shade, quick settings, notification cards, and volume panel on Nothing OS.
+Nothing Glass is a Vector / LSPosed module for Nothing OS 5. Version 2.0 is a complete rewrite of the project around the separate Notifications and Quick Settings panels in SystemUI. It extends the lock-screen rendering from NothingBlurShortcuts to the rest of the shade.
+
+[Download the latest APK](https://github.com/ShinysLove/NothingGlass/releases/latest)
 
 ## Features
 
-- Hardware background blur with adjustable tint and opacity.
-- Styling for notification cards, pop-up notifications, and lock-screen surfaces.
-- Translucent Essential notification sections with a white outline.
-- Matching glass surfaces for volume controls.
-- Preset colors, the Android Monet system palette, and a dark color generated from your wallpaper.
-- Material Design 3 settings with collapsible sections.
-- English by default, with an in-app Russian language option.
-- Live configuration updates, a safe mode, and an emergency disable flag.
+- Hardware background blur for both panels, with translucency and background scaling maintained at full expansion.
+- Frosted notification cards, including grouped notifications, and translucent Quick Settings tiles.
+- A soft blur along the moving lower edge of Quick Settings. Tiles become sharp as they clear the edge and soften as the panel closes.
+- Matching glass surfaces for notification history, notification settings, Clear all, the Quick Settings edit button, and the active-apps chip.
+- A compact VPN indicator that shows the key by itself. The expanded indicator has a translucent pill and a scrolling label with softly faded edges.
+- Frosted lock-screen shortcuts and notifications, heads-up alerts, and volume controls inherited from NothingBlurShortcuts.
 
 ## Compatibility
 
-Developed and tested on a **Nothing Phone (3a), A059 / Asteroids**, running **Nothing OS 5.0, Android 17**, build `Asteroids_C5.0-261023-2146`.
+The module targets **Nothing OS 5.0 (Android 17)**. Development and device testing used the **Nothing Phone (3a), A059 / Asteroids**, with firmware build **2611061007**. Other models and firmware versions are unverified.
 
-Root and an active LSPosed-compatible framework such as Vector are required. The module targets `com.android.systemui` and depends on firmware-specific internal classes. Compatibility with other devices or firmware versions has not been verified.
+You need root, a compatible Zygisk implementation, and Vector or an LSPosed build with Android 17 support. The panel effects use Android's cross-window blur support.
 
 ## Installation
 
-1. Download the APK from [Releases](https://github.com/ShinysLove/NothingGlass/releases).
-2. Install it, then enable Nothing Glass in LSPosed / Vector.
-3. Select **System UI (`com.android.systemui`)** as the module scope.
-4. Restart SystemUI or reboot the device.
-5. Open Nothing Glass to adjust the effects. Most settings are applied live.
+1. Download and install `NothingGlass-2.0.0.apk` from GitHub Releases.
+2. In Vector or LSPosed, enable **Nothing Glass** and select **System UI** (`com.android.systemui`).
+3. Disable Nothing Glass 1.x, NothingBlurShortcuts, or any other module that applies conflicting SystemUI blur effects.
+4. Reboot your phone.
 
-The initial downloadable APK is a **debug-signed build**. The signing key is not included in this repository. A build made on another computer may require uninstalling an existing installation if its signing certificate differs.
+Version 2.0 uses the package `io.github.nothingblurpanels`. It installs alongside Nothing Glass 1.x and updates compatible Nothing Blur Panels builds signed with the same key. The release APK is debug-signed. Local builds use a locally generated signing key, so their signatures can differ from the release.
 
-## Build
+To roll back, disable the module in Vector or LSPosed and reboot.
 
-Requirements: **JDK 17** and **Android SDK Platform 34**. The Gradle wrapper is included.
+## Build from source
 
-Open the project in Android Studio, or set `ANDROID_HOME` / create an untracked `local.properties` pointing to your Android SDK, then run:
+Install **JDK 17 or newer**, **Android SDK Platform 37.0**, and **Android SDK Build Tools 36.0.0**.
 
-```bash
-./gradlew assembleDebug
-```
-
-On Windows:
+On Windows PowerShell:
 
 ```powershell
-.\gradlew.bat assembleDebug
+./build.ps1
 ```
 
-The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+On Linux or macOS, set `ANDROID_HOME` to your Android SDK path, install `zip`, and run:
 
-## Recovery
-
-To disable the module's hooks through ADB:
-
-```bash
-adb shell su -c 'touch /data/local/tmp/nothing_glass_disable'
-adb shell su -c 'pkill -f com.android.systemui'
+```sh
+./build.sh
 ```
 
-To remove the emergency flag after fixing a configuration:
+Both scripts produce `bin/NothingGlass.apk`. Build output and the local signing key are kept out of Git.
 
-```bash
-adb shell su -c 'rm /data/local/tmp/nothing_glass_disable'
-```
+## Credits
 
-Disabling the module in LSPosed / Vector and restarting SystemUI is another recovery option.
+- **Ak1o-T** created [NothingBlurShortcuts](https://github.com/Ak1o-T/NothingBlurShortcuts), the open-source project that provides the foundation for this rewrite, including the lock-screen, heads-up notification, and volume rendering.
+- **ShinysLove** maintains Nothing Glass and developed the split-shade integration and control styling.
 
-## Project layout
-
-- `app/src/main/java/com/nothing/glass/hooks/` — SystemUI hooks.
-- `app/src/main/java/com/nothing/glass/config/` — configuration and live updates.
-- `app/src/main/java/com/nothing/glass/ui/` — settings activity.
-- `app/src/main/res/` — UI layouts, icons, theme, and translations.
-
-## License
-
-[MIT](LICENSE).
+The 2.x source is licensed under the [Apache License 2.0](LICENSE). The historical Nothing Glass 1.x source retains its [MIT license](LICENSE-LEGACY).
